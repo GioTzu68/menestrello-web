@@ -127,7 +127,7 @@ audio{width:100%;margin-top:10px}
       <select id="rubricaSel"><option value="">— scegli un contatto —</option></select>
       <div class="row">
         <div><label id="lblNum">Numero da chiamare</label><input type="text" id="numero" value="3287242120"></div>
-        <div id="codiceWrap"><label>Codice (DTMF)</label><input type="text" id="codice" value="1234"></div>
+        <div id="codiceWrap"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="codiceOn" checked style="width:auto;margin:0">Codice (DTMF)</label><input type="text" id="codice" value="1234"></div>
       </div>
       <div class="row" id="voceOpts">
         <div><label>Ripetizioni</label><input type="number" id="repeat" value="0" min="0" max="5"></div>
@@ -178,7 +178,7 @@ audio{width:100%;margin-top:10px}
       </div>
       <label>Numero</label><input type="text" id="cNumero">
       <div class="row">
-        <div><label>Codice (DTMF)</label><input type="text" id="cCodice" value="1234"></div>
+        <div><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cCodiceOn" checked style="width:auto;margin:0">Codice (DTMF)</label><input type="text" id="cCodice" value="1234"></div>
         <div><label>Chiusura</label><select id="cStop"><option value="">nessuna</option><option value="#">#</option><option value="*">*</option></select></div>
       </div>
       <div class="row">
@@ -226,7 +226,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.18';
+var WEB_VERSION='v1.19';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
@@ -394,7 +394,7 @@ async function sendCampaign(btn){
   if(when==='prog'){ var v=$('whenAt').value; if(!v){ alert('Imposta data e ora'); return; }
     whenTs=Math.floor(new Date(v).getTime()/1000);
     if(whenTs*1000 < Date.now()-60000){ alert('L\'orario impostato e nel passato'); return; } }
-  var cod = (!gruppi && !sms) ? $('codice').value.trim() : '';
+  var cod = (!gruppi && !sms) ? composeCodice() : '';
   var stp = (!gruppi && !sms) ? $('stop').value : '';
   var rep = (!gruppi && !sms) ? ($('repeat').value||'0') : '0';
   var nome = (sms?'SMS':'Bando')+(gruppi?(' a '+groups.length+' grupp'+(groups.length===1?'o':'i')):(' a '+numbers[0]));
@@ -502,7 +502,7 @@ $('btnSend').onclick=async function(){
   try{
     log('<span class="pill warn">Invio…</span>');
     var r=await post('/bando',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      numero:$('numero').value.trim(), codice:$('codice').value.trim(), audio_id:audioId,
+      numero:$('numero').value.trim(), codice:composeCodice(), audio_id:audioId,
       repeat:parseInt($('repeat').value||'0',10), stop_dtmf:$('stop').value, jingle:selJingle() })});
     log('<span class="pill ok">inviato</span> richiesta '+r.req_id+' — attendo la board…');
     poll(r.req_id,0);
@@ -569,7 +569,8 @@ function renderRubricaSel(){
 }
 $('rubricaSel').onchange=function(){
   var id=this.value; var c=RUB.contacts.filter(function(x){return x.id===id;})[0];
-  if(c){ $('numero').value=c.numero; if(c.codice) $('codice').value=c.codice;
+  if(c){ $('numero').value=c.numero;
+    var hasCode=!!(c.codice&&String(c.codice).length); $('codiceOn').checked=hasCode; if(hasCode) $('codice').value=c.codice; syncCodice();
     var s=$('stop'); if(s&&c.stop!==undefined){ for(var i=0;i<s.options.length;i++){ if(s.options[i].value===c.stop) s.selectedIndex=i; } } }
   updateSendEnabled();
 };
@@ -618,8 +619,8 @@ function renderCGroups(selIds){
     el.appendChild(lab);
   });
 }
-function newContact(){ $('cId').value='';$('cNome').value='';$('cCognome').value='';$('cNumero').value='';$('cCodice').value='1234';$('cStop').value='#';$('cRepeat').value='0';$('cTent').value='1'; renderCGroups([]); $('cEditor').style.display=''; }
-function editContact(c){ $('cId').value=c.id;$('cNome').value=c.nome||'';$('cCognome').value=c.cognome||'';$('cNumero').value=c.numero||'';$('cCodice').value=c.codice||'';$('cStop').value=(c.stop!==undefined?c.stop:'#');$('cRepeat').value=c.repeat||0;$('cTent').value=c.tentativi||1; renderCGroups(c.groups||[]); $('cEditor').style.display=''; }
+function newContact(){ $('cId').value='';$('cNome').value='';$('cCognome').value='';$('cNumero').value='';$('cCodice').value='1234';$('cCodiceOn').checked=true;$('cStop').value='#';$('cRepeat').value='0';$('cTent').value='1'; syncCCodice(); renderCGroups([]); $('cEditor').style.display=''; }
+function editContact(c){ $('cId').value=c.id;$('cNome').value=c.nome||'';$('cCognome').value=c.cognome||'';$('cNumero').value=c.numero||'';$('cCodice').value=c.codice||'';$('cCodiceOn').checked=!!(c.codice&&String(c.codice).length);$('cStop').value=(c.stop!==undefined?c.stop:'#');$('cRepeat').value=c.repeat||0;$('cTent').value=c.tentativi||1; syncCCodice(); renderCGroups(c.groups||[]); $('cEditor').style.display=''; }
 $('btnNewContact').onclick=newContact;
 $('cCancel').onclick=function(){ $('cEditor').style.display='none'; };
 $('cSave').onclick=async function(){
@@ -628,7 +629,7 @@ $('cSave').onclick=async function(){
   if(!num){ alert('Inserisci il numero'); return; }
   var gs=Array.prototype.slice.call(document.querySelectorAll('.cgrp:checked')).map(function(x){return x.value;});
   var body='id='+encodeURIComponent($('cId').value)+'&nome='+encodeURIComponent(nome)+'&cognome='+encodeURIComponent(cognome)+
-    '&numero='+encodeURIComponent(num)+'&groups='+encodeURIComponent(gs.join(','))+'&codice='+encodeURIComponent($('cCodice').value.trim())+
+    '&numero='+encodeURIComponent(num)+'&groups='+encodeURIComponent(gs.join(','))+'&codice='+encodeURIComponent($('cCodiceOn').checked?$('cCodice').value.trim():'')+
     '&stop='+encodeURIComponent($('cStop').value)+'&repeat='+encodeURIComponent($('cRepeat').value||'0')+'&tentativi='+encodeURIComponent($('cTent').value||'1');
   try{ await post('/board/contact',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}); $('cEditor').style.display='none'; await loadRubrica(); if(dest==='gruppi') loadGroups(); }
   catch(e){ alert('Errore: '+e.message); }
@@ -712,6 +713,14 @@ async function annullaProgrammato(id){
     await loadScheduled();
   }catch(e){ alert('Errore: '+e.message); }
 }
+
+// ---- codice DTMF: casella "Invia codice"; se spenta, campo disabilitato e nessun codice ----
+function composeCodice(){ return $('codiceOn').checked ? $('codice').value.trim() : ''; }
+function syncCodice(){ var on=$('codiceOn').checked; $('codice').disabled=!on; $('codice').style.opacity=on?1:.5; }
+function syncCCodice(){ var on=$('cCodiceOn').checked; $('cCodice').disabled=!on; $('cCodice').style.opacity=on?1:.5; }
+if($('codiceOn')) $('codiceOn').onchange=function(){ syncCodice(); updateSendEnabled(); };
+if($('cCodiceOn')) $('cCodiceOn').onchange=syncCCodice;
+syncCodice();
 
 // ---- boot: da github.io scopre l'URL del backend dal Gist PRIMA di partire ----
 (async function boot(){
