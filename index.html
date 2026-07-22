@@ -132,7 +132,7 @@ audio{width:100%;margin-top:10px}
       <div class="row" id="voceOpts">
         <div><label>Ripetizioni</label><input type="number" id="repeat" value="0" min="0" max="5"></div>
         <div><label>Tono di stop</label>
-          <select id="stop"><option value="#">#</option><option value="*">*</option></select></div>
+          <select id="stop"><option value="#">#</option><option value="*">*</option><option value="">— nessuno —</option></select></div>
       </div>
     </div>
 
@@ -226,7 +226,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.17';
+var WEB_VERSION='v1.18';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
