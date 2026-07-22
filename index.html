@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Menestrello — invia bando</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNSIgZmlsbD0iIzE0MUEyNiIvPjxnIGZpbGw9IiM0RkQxQzUiPjxwYXRoIGQ9Ik05IDNsMTAtMnY0TDExIDYuNlYxN2EzLjUgMyAwIDEgMS0yLTIuOFYzeiIvPjxjaXJjbGUgY3g9IjE4IiBjeT0iMTUiIHI9IjIuNiIvPjwvZz48L3N2Zz4=">
+<style>
+:root{--bg:#080B12;--surf:#141A26;--bar:#0E1116;--teal:#4FD1C5;--txt:#e6edf3;--muted:#8b96a5;--field:#0F141E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.bar{display:flex;align-items:center;gap:10px;background:var(--bar);padding:12px 16px;position:sticky;top:0}
+.bar svg{width:22px;height:22px;fill:var(--teal)}
+.title{font-weight:800;letter-spacing:.3px;font-size:18px}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+.card{background:var(--surf);border-radius:14px;padding:16px;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,textarea,select,button{font:inherit}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--field);border:1px solid #223;border-radius:9px;color:var(--txt);padding:10px}
+textarea{min-height:90px;resize:vertical}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.tab{flex:1;min-width:120px;text-align:center;background:var(--field);border:1px solid #223;border-radius:9px;padding:10px;cursor:pointer;color:var(--muted)}
+.tab.on{background:var(--teal);color:#04121a;border-color:var(--teal);font-weight:700}
+.btn{display:inline-block;width:100%;text-align:center;background:var(--teal);color:#04121a;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;margin-top:10px}
+.btn.tonal{background:#22303f;color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.models{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.models button{background:var(--field);border:1px solid #223;border-radius:9px;padding:12px;color:var(--txt);cursor:pointer}
+.models button.on{background:var(--teal);color:#04121a;border-color:var(--teal);font-weight:700}
+.dim{color:var(--muted);font-size:13px}
+.hide{display:none}
+audio{width:100%;margin-top:10px}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.ok{background:rgba(79,209,197,.18);color:var(--teal)}
+.warn{background:rgba(255,180,60,.18);color:#ffb43c}
+.err{background:rgba(255,82,82,.18);color:#ff5252}
+#log{font-size:13px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="bar">
+  <svg viewBox="0 0 24 24"><path d="M9 3l10-2v4L11 6.6V17a3.5 3 0 1 1-2-2.8V3z"/><circle cx="18" cy="15" r="2.6"/></svg>
+  <div class="title">Menestrello — invia bando</div>
+  <a href="/guida" target="_blank" style="margin-left:auto;color:var(--teal);text-decoration:none;font-weight:700;font-size:14px;background:#22303f;padding:7px 12px;border-radius:9px">📖 Guida</a>
+</div>
+<div class="wrap">
+
+  <div class="card" id="boardCard">
+    <h2>Stato centralina <span id="bState" class="pill warn" style="float:right">…</span></h2>
+    <div id="bInfo" class="dim">verifico…</div>
+  </div>
+
+  <div class="card">
+    <h2>Cosa vuoi inviare</h2>
+    <div class="tabs">
+      <div class="tab on" id="ch-voce" data-ch="voce">📣 Bando (voce)</div>
+      <div class="tab" id="ch-sms" data-ch="sms">💬 SMS</div>
+    </div>
+  </div>
+
+  <div class="card" id="smsCard" style="display:none">
+    <h2>Testo dell'SMS</h2>
+    <textarea id="smsTxt" placeholder="Es. Si avvisa la cittadinanza che domani..."></textarea>
+    <div class="dim" id="smsLen" style="margin-top:6px">0 caratteri</div>
+  </div>
+
+  <div class="card" id="composeCard">
+    <h2>1 · Componi il bando</h2>
+    <div class="tabs">
+      <div class="tab on" data-s="testo">Testo → voce</div>
+      <div class="tab" data-s="file">Carica file</div>
+      <div class="tab" data-s="modelli">Modelli</div>
+    </div>
+
+    <div id="p-testo">
+      <label>Testo del bando</label>
+      <textarea id="txt" placeholder="Es. Si avvisa la cittadinanza che domani..."></textarea>
+      <label>Voce</label>
+      <select id="voice">
+        <option value="elsa">Elsa (femminile)</option>
+        <option value="diego">Diego (maschile)</option>
+      </select>
+      <button class="btn" id="btnTts">Genera voce</button>
+    </div>
+
+    <div id="p-file" class="hide">
+      <label>File audio (mp3, wav, m4a…)</label>
+      <input type="file" id="file" accept="audio/*">
+      <button class="btn" id="btnUp">Carica</button>
+    </div>
+
+    <div id="p-modelli" class="hide">
+      <label>Scegli un bando pronto</label>
+      <div class="models" id="models"><span class="dim">carico…</span></div>
+    </div>
+
+    <div id="ready" class="hide" style="margin-top:12px">
+      <span class="pill ok">audio pronto ✓</span>
+      <audio id="prev" controls></audio>
+    </div>
+
+    <div style="margin-top:14px;border-top:1px solid #223;padding-top:12px">
+      <label>Jingle di apertura <span class="dim" style="font-weight:400">— suona prima del bando</span></label>
+      <div class="row">
+        <select id="jingleSel"><option value="">— nessuno —</option></select>
+        <button class="btn tonal" id="btnJinglePrev" style="flex:0 0 auto;width:auto;margin:0;padding:10px 15px" title="Ascolta">▶</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <input type="file" id="jingleFile" accept="audio/*" style="font-size:13px">
+        <button class="btn tonal" id="btnJingleUp" style="flex:0 0 auto;width:auto;margin:0;padding:10px 15px">Carica</button>
+      </div>
+      <audio id="jinglePrev" style="display:none"></audio>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Destinatario</h2>
+    <div class="tabs">
+      <div class="tab on" id="d-singolo" data-d="singolo">👤 Singolo</div>
+      <div class="tab" id="d-gruppi" data-d="gruppi">👥 Gruppi</div>
+    </div>
+
+    <div id="destSingolo">
+      <label>Dalla rubrica</label>
+      <select id="rubricaSel"><option value="">— scegli un contatto —</option></select>
+      <div class="row">
+        <div><label id="lblNum">Numero da chiamare</label><input type="text" id="numero" value="3287242120"></div>
+        <div id="codiceWrap"><label>Codice (DTMF)</label><input type="text" id="codice" value="1234"></div>
+      </div>
+      <div class="row" id="voceOpts">
+        <div><label>Ripetizioni</label><input type="number" id="repeat" value="0" min="0" max="5"></div>
+        <div><label>Tono di stop</label>
+          <select id="stop"><option value="#">#</option><option value="*">*</option></select></div>
+      </div>
+    </div>
+
+    <div id="destGruppi" style="display:none">
+      <label>Invia a tutti i contatti dei gruppi selezionati</label>
+      <div id="groupsList" class="dim">carico gruppi…</div>
+      <div class="dim" id="groupsHint" style="margin-top:8px">Codice, chiusura e ripetizioni vengono presi dalla rubrica, per ogni contatto.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Quando</h2>
+    <div class="tabs">
+      <div class="tab on" id="w-subito" data-w="subito">⚡ Subito</div>
+      <div class="tab" id="w-prog" data-w="prog">🕑 Programmato</div>
+    </div>
+    <div id="whenWrap" style="display:none;margin-top:8px">
+      <label>Data e ora dell'invio</label>
+      <input type="datetime-local" id="whenAt">
+      <div class="dim" style="margin-top:6px">La centralina invierà da sola all'orario impostato, anche a computer spento.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Rubrica <span class="dim" style="font-weight:400;font-size:12px">· sulla centralina</span></h2>
+
+    <div style="font-weight:700;font-size:13px;margin:2px 0 6px">Gruppi</div>
+    <div id="grpMgr" class="dim">carico…</div>
+    <div class="row" style="margin-top:8px">
+      <input type="text" id="newGrp" placeholder="Nome nuovo gruppo">
+      <button class="btn tonal" id="btnAddGrp" style="flex:0 0 auto;width:auto;margin:0;padding:10px 16px">+ Gruppo</button>
+    </div>
+
+    <div style="font-weight:700;font-size:13px;margin:18px 0 6px">Contatti</div>
+    <div id="contactMgr" class="dim">carico…</div>
+    <button class="btn tonal" id="btnNewContact">+ Nuovo contatto</button>
+
+    <div id="cEditor" style="display:none;margin-top:12px;border-top:1px solid #223;padding-top:12px">
+      <input type="hidden" id="cId">
+      <div class="row">
+        <div><label>Nome</label><input type="text" id="cNome"></div>
+        <div><label>Cognome</label><input type="text" id="cCognome"></div>
+      </div>
+      <label>Numero</label><input type="text" id="cNumero">
+      <div class="row">
+        <div><label>Codice (DTMF)</label><input type="text" id="cCodice" value="1234"></div>
+        <div><label>Chiusura</label><select id="cStop"><option value="">nessuna</option><option value="#">#</option><option value="*">*</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Ripetizioni</label><input type="number" id="cRepeat" value="0" min="0" max="5"></div>
+        <div><label>Tentativi</label><input type="number" id="cTent" value="1" min="1" max="9"></div>
+      </div>
+      <label>Gruppi di appartenenza</label>
+      <div id="cGroups" class="dim">—</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="cSave" style="margin:0">Salva contatto</button>
+        <button class="btn tonal" id="cCancel" style="margin:0">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn" id="btnSend" disabled>📣 Invia bando</button>
+
+  <div class="card" id="statusCard" style="margin-top:14px">
+    <h2>Stato</h2>
+    <div id="log" class="dim">Componi un audio e premi «Invia bando».</div>
+  </div>
+
+  <div class="card" id="schedCard" style="display:none">
+    <h2>Invii programmati</h2>
+    <div class="dim" style="margin-bottom:10px">Invii impostati per un orario futuro, non ancora partiti. Puoi annullarli finché la centralina non li invia.</div>
+    <div id="schedList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Storico invii</h2>
+    <div class="dim" style="margin-bottom:10px">Tutti gli invii (bandi, SMS, chiamate) con data e ora, salvati sulla microSD della centralina.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn tonal" onclick="showStorico()" style="width:auto">👁 Mostra</button>
+      <button class="btn tonal" onclick="dlStorico('log.csv','storico_invii.csv')" style="width:auto">⬇ Scarica CSV</button>
+      <button class="btn tonal" onclick="dlStorico('log','eventi.txt')" style="width:auto">⬇ Scarica TXT</button>
+    </div>
+    <pre id="storicoView" style="display:none;white-space:pre-wrap;word-break:break-word;background:var(--field,#0f141e);padding:10px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto;margin-top:10px"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Info</h2>
+    <div id="infoBox" class="dim">…</div>
+    <a class="btn tonal" href="#" onclick="location.reload();return false" style="margin-top:10px">↻ Ricarica</a>
+  </div>
+</div>
+
+<script>
+var WEB_VERSION='v1.16';
+var audioId=null, mediaRec=null, chunks=[];
+function $(id){return document.getElementById(id)}
+
+// ---- base API + token (per link stabile su GitHub Pages) ----
+// Servita dal backend (stessa origine) -> URL relativi. Su github.io/file: -> scopre il backend
+// dal Gist di discovery e chiama in assoluto, mandando il token d'accesso (se richiesto).
+var GIST_URL='https://gist.githubusercontent.com/GioTzu68/a0fc217940bc8e3474bca61c465a6aca/raw/menestrello-backend.json';
+var API_BASE='';
+var TOKEN=localStorage.getItem('mnstr_token')||'';
+var REMOTE=(location.hostname.indexOf('github.io')>=0 || location.protocol==='file:');
+function apiUrl(p){ return API_BASE + p; }
+function apiHeaders(extra){ var h=extra||{}; if(TOKEN) h['X-Access-Token']=TOKEN; return h; }
+var _prompting=false;
+async function gfetch(p,opts){
+  opts=opts||{}; opts.headers=apiHeaders(opts.headers);
+  var r=await fetch(apiUrl(p),opts);
+  if(r.status===401 && !_prompting){ _prompting=true; promptToken(); throw new Error('accesso non autorizzato'); }
+  return r;
+}
+function promptToken(){
+  var t=window.prompt('Codice di accesso Menestrello:');
+  if(t){ TOKEN=t.trim(); localStorage.setItem('mnstr_token',TOKEN); location.reload(); }
+}
+async function discoverBase(){
+  if(!REMOTE) return '';                          // servita dal backend: relativo
+  try{ var j=await (await fetch(GIST_URL+'?t='+Date.now())).json(); return (j.url||'').replace(/\/+$/,''); }
+  catch(e){ return ''; }
+}
+function show(s){
+  ['testo','file','modelli'].forEach(function(k){ $('p-'+k).className = (k===s?'':'hide'); });
+  document.querySelectorAll('.tab[data-s]').forEach(function(t){ t.className='tab'+(t.dataset.s===s?' on':''); });
+}
+document.querySelectorAll('.tab[data-s]').forEach(function(t){ t.onclick=function(){ show(t.dataset.s); }; });
+
+// ---- canale: bando VOCE o SMS ----
+var channel='voce';
+function updateSendEnabled(){
+  var contentOk = (channel==='sms') ? ($('smsTxt').value.trim().length>0) : !!audioId;
+  var destOk = (dest==='gruppi') ? (selectedGroups().length>0) : ($('numero').value.trim().length>0);
+  $('btnSend').disabled = !(contentOk && destOk);
+  var sms=(channel==='sms'), g=(dest==='gruppi');
+  $('btnSend').textContent = (sms?'💬 Invia SMS':'📣 Invia bando') + (g?' ai gruppi':'');
+}
+function setChannel(ch){
+  channel=ch;
+  document.querySelectorAll('[data-ch]').forEach(function(t){ t.className='tab'+(t.dataset.ch===ch?' on':''); });
+  var sms=(ch==='sms');
+  $('smsCard').style.display     = sms?'':'none';
+  $('composeCard').style.display = sms?'none':'';
+  $('codiceWrap').style.display  = sms?'none':'';
+  $('voceOpts').style.display    = sms?'none':'';
+  $('lblNum').textContent = sms?'Numero destinatario':'Numero da chiamare';
+  $('btnSend').textContent = sms?'💬 Invia SMS':'📣 Invia bando';
+  updateSendEnabled();
+}
+document.querySelectorAll('[data-ch]').forEach(function(t){ t.onclick=function(){ setChannel(t.dataset.ch); }; });
+$('smsTxt').oninput=function(){
+  var n=this.value.length;
+  $('smsLen').textContent = this.value.trim().length+' caratteri'+(n>160?(' · '+Math.ceil(n/160)+' SMS'):'');
+  updateSendEnabled();
+};
+$('numero').oninput=updateSendEnabled;
+
+async function sendSms(btn){
+  var testo=$('smsTxt').value.trim(), numero=$('numero').value.trim();
+  if(!testo){ alert('Scrivi il testo dell\'SMS'); return; }
+  if(!numero){ alert('Inserisci il numero destinatario'); return; }
+  btn.disabled=true;
+  try{
+    log('<span class="pill warn">Invio SMS…</span>');
+    var r=await post('/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({numero:numero,testo:testo})});
+    log('<span class="pill ok">richiesta inviata</span> '+r.req_id+' — attendo la board…');
+    poll(r.req_id,0);
+  }catch(e){ log('<span class="pill err">Errore invio SMS: '+e.message+'</span>'); }
+  btn.disabled=false;
+}
+
+// ---- destinatario: SINGOLO o GRUPPI ----
+var dest='singolo';
+function selectedGroups(){ return Array.prototype.slice.call(document.querySelectorAll('.grpchk:checked')).map(function(c){return c.value;}); }
+function setDest(d){
+  dest=d;
+  document.querySelectorAll('[data-d]').forEach(function(t){ t.className='tab'+(t.dataset.d===d?' on':''); });
+  var g=(d==='gruppi');
+  $('destSingolo').style.display=g?'none':'';
+  $('destGruppi').style.display =g?'':'none';
+  if(g) loadGroups();
+  updateSendEnabled();
+}
+document.querySelectorAll('[data-d]').forEach(function(t){ t.onclick=function(){ setDest(t.dataset.d); }; });
+
+// ---- quando: SUBITO o PROGRAMMATO ----
+var when='subito';
+function setWhen(w){
+  when=w;
+  document.querySelectorAll('[data-w]').forEach(function(t){ t.className='tab'+(t.dataset.w===w?' on':''); });
+  $('whenWrap').style.display = (w==='prog')?'':'none';
+}
+document.querySelectorAll('[data-w]').forEach(function(t){ t.onclick=function(){ setWhen(t.dataset.w); }; });
+
+function _nomeContatto(c){
+  var nm=((c.nome||'')+' '+(c.cognome||'')).trim();
+  return (nm||'(senza nome)')+(c.numero?(' · '+c.numero):'');
+}
+async function loadGroups(){
+  var el=$('groupsList');
+  try{
+    var r=await (await gfetch('/board/rubrica')).json();
+    var groups=r.groups||[], contacts=r.contacts||[];
+    if(!groups.length){ el.innerHTML='<span class="dim">nessun gruppo in rubrica — creali dall\'app operatore</span>'; updateSendEnabled(); return; }
+    el.innerHTML='';
+    groups.forEach(function(g){
+      var members=contacts.filter(function(c){ return (c.groups||[]).indexOf(g.id)>=0; });
+      var wrap=document.createElement('div'); wrap.style.cssText='border-bottom:1px solid #1c2733;padding:8px 0';
+      var top=document.createElement('div'); top.style.cssText='display:flex;align-items:center;gap:10px';
+      top.innerHTML=
+        '<input type="checkbox" class="grpchk" value="'+g.id+'" style="width:auto;flex:0 0 auto">'+
+        '<span class="gname" style="flex:1;cursor:pointer"><b>'+g.nome+'</b> <span class="dim">'+members.length+' contatt'+(members.length===1?'o':'i')+'</span></span>'+
+        (members.length?'<span class="tgl dim" style="cursor:pointer;user-select:none;padding:0 4px">▸ vedi</span>':'');
+      var mem=document.createElement('div'); mem.style.cssText='display:none;color:var(--muted);font-size:12.5px;padding:6px 0 2px 28px;line-height:1.7';
+      mem.innerHTML = members.length ? members.map(function(c){ return '• '+_nomeContatto(c); }).join('<br>') : '<span class="dim">nessun contatto</span>';
+      function toggle(){ var open=(mem.style.display==='none'); mem.style.display=open?'':'none'; var t=top.querySelector('.tgl'); if(t) t.textContent=open?'▾ nascondi':'▸ vedi'; }
+      var gn=top.querySelector('.gname'); if(gn) gn.onclick=toggle;
+      var tg=top.querySelector('.tgl'); if(tg) tg.onclick=toggle;
+      wrap.appendChild(top); wrap.appendChild(mem); el.appendChild(wrap);
+    });
+    document.querySelectorAll('.grpchk').forEach(function(c){ c.onchange=updateSendEnabled; });
+  }catch(e){ el.innerHTML='<span class="pill err">rubrica della board non raggiungibile</span>'; }
+  updateSendEnabled();
+}
+
+// feed live (righe che si accumulano)
+function feedLine(cls,txt){ var d=document.createElement('div'); d.style.margin='4px 0'; d.innerHTML='<span class="pill '+cls+'">•</span> '+txt; $('log').appendChild(d); }
+function feedState(state,detail){
+  var cls=(state==='sms-ok'||state==='sent'||state==='done')?'ok':(state==='sms-err'||state==='error')?'err':(state==='interrotto')?'warn':'ok';
+  feedLine(cls, detail||state);
+}
+// legge il LOG eventi della board per numero di sequenza: nessuno stato viene perso
+// (il polling "a fotografie" saltava i destinatari veloci -> primo SMS mancante nel feed).
+var CSEEN=0;
+function pollCampaign(cid,n){
+  if(n>250) return;
+  gfetch('/board/status').then(function(r){return r.json();}).then(function(d){
+    var b=d.bando||{}, log=b.log||[], done=false;
+    log.forEach(function(e){
+      if(e.seq>CSEEN){ CSEEN=e.seq; feedState(e.state, e.detail);
+        if(['done','error','interrotto'].indexOf(e.state)>=0) done=true; }
+    });
+    if(done) return;
+    setTimeout(function(){ pollCampaign(cid,n+1); },800);
+  }).catch(function(){ setTimeout(function(){ pollCampaign(cid,n+1); },800); });
+}
+
+async function sendCampaign(btn){
+  var sms=(channel==='sms'), gruppi=(dest==='gruppi');
+  var groups = gruppi ? selectedGroups() : [];
+  var numbers = gruppi ? [] : [$('numero').value.trim()];
+  if(gruppi && !groups.length){ alert('Seleziona almeno un gruppo'); return; }
+  if(!gruppi && !numbers[0]){ alert('Inserisci il numero destinatario'); return; }
+  if(sms && !$('smsTxt').value.trim()){ alert('Scrivi il testo dell\'SMS'); return; }
+  if(!sms && !audioId){ alert('Prepara prima l\'audio del bando'); return; }
+  var whenTs=0;
+  if(when==='prog'){ var v=$('whenAt').value; if(!v){ alert('Imposta data e ora'); return; }
+    whenTs=Math.floor(new Date(v).getTime()/1000);
+    if(whenTs*1000 < Date.now()-60000){ alert('L\'orario impostato e nel passato'); return; } }
+  var cod = (!gruppi && !sms) ? $('codice').value.trim() : '';
+  var stp = (!gruppi && !sms) ? $('stop').value : '';
+  var rep = (!gruppi && !sms) ? ($('repeat').value||'0') : '0';
+  var nome = (sms?'SMS':'Bando')+(gruppi?(' a '+groups.length+' grupp'+(groups.length===1?'o':'i')):(' a '+numbers[0]));
+  btn.disabled=true; $('log').innerHTML='';
+  feedLine('warn', whenTs?'Programmo l\'invio…':'Creo l\'invio…');
+  try{
+    var body='id=&nome='+encodeURIComponent(nome)+'&tipo='+(sms?'sms':'bando')
+      +'&groups='+encodeURIComponent(groups.join(','))+'&numbers='+encodeURIComponent(numbers.join(','))
+      +'&codice='+encodeURIComponent(cod)+'&stop='+encodeURIComponent(stp)+'&repeat='+encodeURIComponent(rep)
+      +'&when='+whenTs+'&testo='+encodeURIComponent(sms?$('smsTxt').value.trim():'');
+    var cr=await post('/board/campaign',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});
+    var cid=cr.id; if(!cid) throw new Error('creazione campagna fallita');
+    if(!sms){ feedLine('warn','Carico l\'audio sulla board…'); await post('/campaign_push_audio?cid='+encodeURIComponent(cid)+'&audio_id='+encodeURIComponent(audioId)+'&jingle='+encodeURIComponent(selJingle()),{method:'POST'}); }
+    if(whenTs){ feedLine('ok','Programmato per '+new Date(whenTs*1000).toLocaleString()+' — la centralina lo inviera da sola.'); loadScheduled(); btn.disabled=false; return; }
+    try{ var _s0=await (await gfetch('/board/status')).json(); CSEEN=(_s0.bando&&_s0.bando.seq)||0; }catch(e){ CSEEN=0; }
+    feedLine('warn','Avvio…');
+    await post('/board/campaign/run',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(cid)});
+    pollCampaign(cid,0);
+  }catch(e){ feedLine('err','Errore: '+e.message); }
+  btn.disabled=false;
+}
+
+function setAudio(r){
+  audioId=r.audio_id;
+  $('prev').src=apiUrl('/audio/'+r.audio_id+'.wav')+'?t='+Date.now();
+  $('ready').className='';
+  $('btnSend').disabled=false;
+  var s=Math.round((r.len||0)/16000); // ~ secondi @ wav 8k 16bit
+  // Il bando viene consegnato in AMR (compresso ~10x): capienza EFS ~23 min. Avviso solo vicino al limite.
+  var warn = (s>1080)
+    ? ' <span class="pill warn">audio molto lungo (~'+Math.round(s/60)+' min)</span> — vicino al limite della centralina (~23 min in AMR): verifica la riproduzione in chiamata.'
+    : '';
+  log('<span class="pill ok">audio pronto</span> ~'+s+'s.'+warn+' Ora scegli il destinatario e invia.');
+}
+function log(html){ $('log').innerHTML=html; }
+function busy(b,msg){ if(b) log('<span class="pill warn">'+msg+'…</span>'); }
+
+async function post(url,opts){
+  opts=opts||{};
+  opts.headers=apiHeaders(opts.headers);
+  url=apiUrl(url);
+  // timeout: senza, se il tunnel "singhiozza" la fetch resta appesa all'infinito (es. "carico…")
+  if(typeof AbortController!=='undefined' && !opts.signal){
+    var ac=new AbortController(); opts.signal=ac.signal;
+    var to=setTimeout(function(){ac.abort();}, opts.timeout||25000);
+    try{ var r=await fetch(url,opts); }finally{ clearTimeout(to); }
+  } else { var r=await fetch(url,opts); }
+  if(r.status===401){ promptToken(); throw new Error('accesso non autorizzato'); }
+  if(!r.ok){ var t=await r.text(); throw new Error(t||('HTTP '+r.status)); } return r.json();
+}
+
+$('btnTts').onclick=async function(){
+  var text=$('txt').value.trim(); if(!text){ alert('Scrivi il testo'); return; }
+  try{ busy(1,'Genero la voce'); this.disabled=true;
+    var r=await post('/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,voice:$('voice').value})});
+    setAudio(r);
+  }catch(e){ log('<span class="pill err">Errore: '+e.message+'</span>'); }
+  this.disabled=false;
+};
+$('btnUp').onclick=function(){
+  var f=$('file').files[0]; if(!f){ alert('Scegli un file'); return; }
+  var mb=f.size/1048576;
+  // --- controllo PRIMA del caricamento ---
+  if(f.type.indexOf('video')===0 && !confirm('Sembra un VIDEO ('+mb.toFixed(1)+' MB): verrà usata solo la traccia audio. Procedere?')) return;
+  if(mb>60 && !confirm('File grande ('+mb.toFixed(1)+' MB): il caricamento può richiedere parecchio tempo. Procedere?')) return;
+  // --- upload con AVANZAMENTO nel tasto (XHR: niente timeout, supporta onprogress) ---
+  var btn=this, orig=btn.textContent; btn.disabled=true;
+  var fd=new FormData(); fd.append('file',f);
+  var xhr=new XMLHttpRequest(); xhr.open('POST',apiUrl('/audio')); if(TOKEN) xhr.setRequestHeader('X-Access-Token',TOKEN);
+  xhr.upload.onprogress=function(e){
+    if(!e.lengthComputable) return;
+    var pct=Math.round(e.loaded/e.total*100);
+    btn.textContent = pct<100
+      ? ('Carico '+pct+'% · '+Math.round(e.loaded/1024)+'/'+Math.round(e.total/1024)+' KB')
+      : 'Elaboro l’audio…';
+  };
+  xhr.onload=function(){
+    btn.disabled=false; btn.textContent=orig;
+    if(xhr.status>=200 && xhr.status<300){ try{ setAudio(JSON.parse(xhr.responseText)); }catch(err){ log('<span class="pill err">risposta non valida</span>'); } }
+    else log('<span class="pill err">Errore: '+(xhr.responseText||('HTTP '+xhr.status))+'</span>');
+  };
+  xhr.onerror=function(){ btn.disabled=false; btn.textContent=orig; log('<span class="pill err">Errore di rete durante il caricamento</span>'); };
+  btn.textContent='Carico 0%…';
+  xhr.send(fd);
+};
+async function loadModels(tries){
+  tries=tries||0; var el=$('models');
+  try{ var r=await post('/models',{}); el.innerHTML='';
+    if(!r.models||!r.models.length){ el.innerHTML='<span class="dim">nessun modello disponibile</span>'; return; }
+    r.models.forEach(function(m){ var b=document.createElement('button'); b.textContent=m.label;
+      b.onclick=async function(){ try{ busy(1,'Preparo il modello'); setAudio(await post('/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:m.name})}));
+        document.querySelectorAll(String.fromCharCode(35)+"models button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); }catch(e){ log('<span class="pill err">'+e.message+'</span>'); } };
+      el.appendChild(b); });
+  }catch(e){
+    if(tries<2){ el.innerHTML='<span class="dim">carico… (nuovo tentativo)</span>'; setTimeout(function(){loadModels(tries+1);},1500); return; }
+    el.innerHTML='<span class="dim">modelli non disponibili — </span><a href="#" id="reModels">riprova</a>';
+    var a=$('reModels'); if(a) a.onclick=function(){ el.innerHTML='<span class="dim">carico…</span>'; loadModels(0); return false; };
+  }
+}
+$('btnSend').onclick=async function(){
+  if(dest==='gruppi' || when==='prog'){ return sendCampaign(this); }
+  if(channel==='sms'){ return sendSms(this); }
+  if(!audioId){ alert('Prepara prima un audio'); return; }
+  this.disabled=true;
+  try{
+    log('<span class="pill warn">Invio…</span>');
+    var r=await post('/bando',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      numero:$('numero').value.trim(), codice:$('codice').value.trim(), audio_id:audioId,
+      repeat:parseInt($('repeat').value||'0',10), stop_dtmf:$('stop').value, jingle:selJingle() })});
+    log('<span class="pill ok">inviato</span> richiesta '+r.req_id+' — attendo la board…');
+    poll(r.req_id,0);
+  }catch(e){ log('<span class="pill err">Errore invio: '+e.message+'</span>'); }
+  this.disabled=false;
+};
+var STATE={downloading:'scarico audio',calling:'sto chiamando',answered:'risposta ricevuta',dtmf:'invio codice',playing:'riproduco il bando',done:'bando completato',sent:'inviato',error:'errore',sending:'invio'};
+async function poll(id,n){
+  if(n>80) return;
+  try{
+    var r=await gfetch('/status/'+id); if(r.ok){ var d=await r.json();
+      var st=d.state||'—'; var lab=STATE[st]||st;
+      var cls=(st==='done'||st==='sent')?'ok':(st==='error'?'err':'warn');
+      log('<span class="pill '+cls+'">'+lab+'</span> '+(d.detail?('<span class="dim">'+d.detail+'</span>'):''));
+      if(st==='done'||st==='error') return;
+    }
+  }catch(e){}
+  setTimeout(function(){ poll(id,n+1); },1500);
+}
+// ---- stato centralina (da /health) ----
+async function loadBoard(){
+  try{
+    var h=await (await gfetch('/health')).json(); var hb=h.heartbeat||{};
+    var age=hb.ts_recv?(Date.now()/1000-hb.ts_recv):null;
+    var online=age!==null && age<45;
+    var st=$('bState'); st.className='pill '+(online?'ok':'err'); st.textContent=online?'online':'offline';
+    var info='';
+    if(online){
+      var csq=hb.csq, q=(csq==null||csq==99)?'n/d':(csq>=20?'ottimo':csq>=15?'buono':csq>=10?'sufficiente':'scarso');
+      info='Segnale 4G: '+q+' (CSQ '+csq+')';
+      if(hb.batt_soc!=null) info+=' · Batteria '+hb.batt_soc+'%';
+      info+=(hb.fix?(' · <a target=_blank href="https://maps.google.com/?q='+hb.lat+','+hb.lon+'">posizione su mappa</a>'):' · GPS: nessun fix');
+      if(hb.oper||hb.iccid||hb.msisdn){
+        info+='<br><span class="dim">SIM: '+(hb.oper||'—')
+          +(hb.msisdn?(' · n° '+hb.msisdn):'')
+          +(hb.iccid?(' · ICCID '+hb.iccid):'')+'</span>';
+      }
+      info+='<br><span class="dim">firmware '+(hb.fw||'?')+' · rete '+(hb.ssid||'—')+' · ultimo contatto '+Math.round(age)+'s fa</span>';
+    } else {
+      info='La centralina non risponde (ultimo contatto '+(age?Math.round(age)+'s fa':'mai')+'). Puoi preparare il bando: partirà appena torna online.';
+    }
+    $('bInfo').innerHTML=info;
+    $('infoBox').innerHTML =
+      'Web dialer <b>'+WEB_VERSION+'</b><br>'+
+      'Backend: <code>'+location.origin+'</code><br>'+
+      'Centralina: <code>'+(hb.host||'?')+'</code> · IP <code>'+(hb.ip||'?')+'</code> · firmware <code>'+(hb.fw||'?')+'</code><br>'+
+      'Rete: '+(hb.ssid||'—')+' · '+(online?'raggiungibile':'non raggiungibile');
+  }catch(e){ $('bInfo').textContent='backend non raggiungibile'; }
+}
+
+// ---- rubrica SULLA BOARD: contatti + gruppi (crea / modifica / elimina) ----
+var RUB={groups:[],contacts:[]};
+function cNome(c){ return ((c.nome||'')+' '+(c.cognome||'')).trim()||'(senza nome)'; }
+function grpNome(id){ var g=RUB.groups.filter(function(x){return x.id===id;})[0]; return g?g.nome:id; }
+async function loadRubrica(){
+  try{ RUB=await (await gfetch('/board/rubrica')).json(); RUB.groups=RUB.groups||[]; RUB.contacts=RUB.contacts||[]; }
+  catch(e){ $('grpMgr').innerHTML='<span class="pill err">rubrica board non raggiungibile</span>'; $('contactMgr').textContent=''; return; }
+  renderGroupsMgr(); renderContactsMgr(); renderRubricaSel();
+}
+function renderRubricaSel(){
+  var sel=$('rubricaSel'); if(!sel) return;
+  sel.innerHTML='<option value="">— scegli un contatto —</option>';
+  RUB.contacts.forEach(function(c){ var o=document.createElement('option'); o.value=c.id; o.textContent=cNome(c)+' ('+c.numero+')'; sel.appendChild(o); });
+}
+$('rubricaSel').onchange=function(){
+  var id=this.value; var c=RUB.contacts.filter(function(x){return x.id===id;})[0];
+  if(c){ $('numero').value=c.numero; if(c.codice) $('codice').value=c.codice;
+    var s=$('stop'); if(s&&c.stop!==undefined){ for(var i=0;i<s.options.length;i++){ if(s.options[i].value===c.stop) s.selectedIndex=i; } } }
+  updateSendEnabled();
+};
+// --- gruppi ---
+function renderGroupsMgr(){
+  var el=$('grpMgr');
+  if(!RUB.groups.length){ el.innerHTML='<span class="dim">nessun gruppo</span>'; return; }
+  el.innerHTML='';
+  RUB.groups.forEach(function(g){
+    var n=RUB.contacts.filter(function(c){return (c.groups||[]).indexOf(g.id)>=0;}).length;
+    var d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1c2733';
+    d.innerHTML='<span style="flex:1"><b>'+g.nome+'</b> <span class="dim">'+n+' contatt'+(n===1?'o':'i')+'</span></span>';
+    var ren=document.createElement('button'); ren.textContent='rinomina'; ren.style.cssText='background:none;border:none;color:var(--teal);cursor:pointer;font:inherit;font-size:12px';
+    ren.onclick=function(){ var nn=prompt('Nuovo nome per "'+g.nome+'":',g.nome); if(nn&&nn.trim()) saveGroup(g.id,nn.trim()); };
+    var del=document.createElement('button'); del.textContent='elimina'; del.style.cssText='background:none;border:none;color:#ff5252;cursor:pointer;font:inherit;font-size:12px';
+    del.onclick=function(){ if(confirm('Eliminare il gruppo "'+g.nome+'"? I contatti restano in rubrica.')) delGroup(g.id); };
+    d.appendChild(ren); d.appendChild(del); el.appendChild(d);
+  });
+}
+async function saveGroup(id,nome){ try{ await post('/board/group',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id||'')+'&nome='+encodeURIComponent(nome)}); await loadRubrica(); if(dest==='gruppi') loadGroups(); }catch(e){ alert('Errore: '+e.message); } }
+async function delGroup(id){ try{ await post('/board/group/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)}); await loadRubrica(); if(dest==='gruppi') loadGroups(); }catch(e){ alert('Errore: '+e.message); } }
+$('btnAddGrp').onclick=function(){ var n=$('newGrp').value.trim(); if(!n){ alert('Scrivi il nome del gruppo'); return; } $('newGrp').value=''; saveGroup('',n); };
+// --- contatti ---
+function renderContactsMgr(){
+  var el=$('contactMgr');
+  if(!RUB.contacts.length){ el.innerHTML='<span class="dim">nessun contatto</span>'; return; }
+  el.innerHTML='';
+  RUB.contacts.forEach(function(c){
+    var gg=(c.groups||[]).map(grpNome).join(', ');
+    var d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1c2733';
+    d.innerHTML='<span style="flex:1"><b>'+cNome(c)+'</b> <span class="dim">'+c.numero+(gg?(' · '+gg):'')+'</span></span>';
+    var ed=document.createElement('button'); ed.textContent='modifica'; ed.style.cssText='background:none;border:none;color:var(--teal);cursor:pointer;font:inherit;font-size:12px';
+    ed.onclick=function(){ editContact(c); };
+    var del=document.createElement('button'); del.textContent='elimina'; del.style.cssText='background:none;border:none;color:#ff5252;cursor:pointer;font:inherit;font-size:12px';
+    del.onclick=function(){ if(confirm('Eliminare "'+cNome(c)+'"?')) delContact(c.id); };
+    d.appendChild(ed); d.appendChild(del); el.appendChild(d);
+  });
+}
+function renderCGroups(selIds){
+  var el=$('cGroups'); selIds=selIds||[];
+  if(!RUB.groups.length){ el.innerHTML='<span class="dim">nessun gruppo (creane uno sopra)</span>'; return; }
+  el.innerHTML=''; el.className='';
+  RUB.groups.forEach(function(g){
+    var lab=document.createElement('label'); lab.style.cssText='display:inline-flex;align-items:center;gap:6px;margin:3px 14px 3px 0;color:var(--txt);font-size:13px';
+    lab.innerHTML='<input type="checkbox" class="cgrp" value="'+g.id+'" style="width:auto"'+(selIds.indexOf(g.id)>=0?' checked':'')+'>'+g.nome;
+    el.appendChild(lab);
+  });
+}
+function newContact(){ $('cId').value='';$('cNome').value='';$('cCognome').value='';$('cNumero').value='';$('cCodice').value='1234';$('cStop').value='#';$('cRepeat').value='0';$('cTent').value='1'; renderCGroups([]); $('cEditor').style.display=''; }
+function editContact(c){ $('cId').value=c.id;$('cNome').value=c.nome||'';$('cCognome').value=c.cognome||'';$('cNumero').value=c.numero||'';$('cCodice').value=c.codice||'';$('cStop').value=(c.stop!==undefined?c.stop:'#');$('cRepeat').value=c.repeat||0;$('cTent').value=c.tentativi||1; renderCGroups(c.groups||[]); $('cEditor').style.display=''; }
+$('btnNewContact').onclick=newContact;
+$('cCancel').onclick=function(){ $('cEditor').style.display='none'; };
+$('cSave').onclick=async function(){
+  var nome=$('cNome').value.trim(), cognome=$('cCognome').value.trim(), num=$('cNumero').value.trim();
+  if(!nome&&!cognome){ alert('Inserisci nome o cognome'); return; }
+  if(!num){ alert('Inserisci il numero'); return; }
+  var gs=Array.prototype.slice.call(document.querySelectorAll('.cgrp:checked')).map(function(x){return x.value;});
+  var body='id='+encodeURIComponent($('cId').value)+'&nome='+encodeURIComponent(nome)+'&cognome='+encodeURIComponent(cognome)+
+    '&numero='+encodeURIComponent(num)+'&groups='+encodeURIComponent(gs.join(','))+'&codice='+encodeURIComponent($('cCodice').value.trim())+
+    '&stop='+encodeURIComponent($('cStop').value)+'&repeat='+encodeURIComponent($('cRepeat').value||'0')+'&tentativi='+encodeURIComponent($('cTent').value||'1');
+  try{ await post('/board/contact',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}); $('cEditor').style.display='none'; await loadRubrica(); if(dest==='gruppi') loadGroups(); }
+  catch(e){ alert('Errore: '+e.message); }
+};
+async function delContact(id){ try{ await post('/board/contact/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)}); await loadRubrica(); if(dest==='gruppi') loadGroups(); }catch(e){ alert('Errore: '+e.message); } }
+
+// la registrazione dal microfono (rimossa dalla UI) richiedeva HTTPS: guardia difensiva
+if((!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) && $('recInfo')){
+  if($('btnRec')) $('btnRec').disabled=true; if($('btnStop')) $('btnStop').disabled=true;
+  $('recInfo').innerHTML='<span class="pill warn">non disponibile</span> La registrazione dal microfono funziona solo su connessione <b>sicura (HTTPS)</b>.';
+}
+// ---- jingle di apertura (voce) ----
+function selJingle(){ var e=$('jingleSel'); return e?e.value:''; }
+async function loadJingles(){
+  var sel=$('jingleSel'); if(!sel) return;
+  try{
+    var r=await (await gfetch('/jingles')).json(); var js=r.jingles||[];
+    var cur=localStorage.getItem('mnstr_jingle')||'';
+    sel.innerHTML='<option value="">— nessuno —</option>';
+    js.forEach(function(n){ var o=document.createElement('option'); o.value=n; o.textContent=n; if(n===cur)o.selected=true; sel.appendChild(o); });
+  }catch(e){}
+}
+if($('jingleSel')) $('jingleSel').onchange=function(){ localStorage.setItem('mnstr_jingle', this.value); };
+if($('btnJinglePrev')) $('btnJinglePrev').onclick=function(){ var n=selJingle(); if(!n){ alert('Scegli un jingle'); return; } var a=$('jinglePrev'); a.src=apiUrl('/jingles/'+encodeURIComponent(n))+'?t='+Date.now(); a.play(); };
+if($('btnJingleUp')) $('btnJingleUp').onclick=async function(){
+  var f=$('jingleFile').files[0]; if(!f){ alert('Scegli un file audio'); return; }
+  var fd=new FormData(); fd.append('file',f); this.disabled=true;
+  try{ var r=await post('/jingles/upload',{method:'POST',body:fd}); await loadJingles();
+    if(r&&r.name){ $('jingleSel').value=r.name; localStorage.setItem('mnstr_jingle',r.name); }
+    log('<span class="pill ok">jingle caricato</span> '+((r&&r.name)||''));
+  }catch(e){ alert('Errore upload: '+e.message); }
+  this.disabled=false; $('jingleFile').value='';
+};
+
+// ---- Storico invii: vista + download (CSV/TXT) via proxy board ----
+async function showStorico(){
+  var el=$('storicoView'); el.style.display='block'; el.textContent='Carico…';
+  try{
+    var r=await gfetch('/board/log');
+    if(!r.ok){ el.textContent='Storico non disponibile ('+r.status+')'; return; }
+    var t=await r.text(); el.textContent=(t&&t.trim())?t:'(nessun evento registrato)';
+    el.scrollTop=el.scrollHeight;   // i più recenti sono in fondo
+  }catch(e){ el.textContent='Errore: '+e.message; }
+}
+async function dlStorico(path,fname){
+  try{
+    var r=await gfetch('/board/'+path);
+    if(!r.ok){ alert('Storico non disponibile ('+r.status+')'); return; }
+    var b=await r.blob(); var u=URL.createObjectURL(b);
+    var a=document.createElement('a'); a.href=u; a.download=fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); },1500);
+  }catch(e){ alert('Errore: '+e.message); }
+}
+
+// ---- Invii programmati: elenco + annulla ----
+function _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+async function loadScheduled(){
+  try{
+    var r=await (await gfetch('/board/campaigns')).json();
+    var cs=(r.campaigns||[]).filter(function(c){ return (c.when|0)>0 && c.stato==='pending'; });
+    cs.sort(function(a,b){ return a.when-b.when; });
+    var card=$('schedCard'), list=$('schedList'); if(!card||!list) return;
+    if(!cs.length){ card.style.display='none'; list.innerHTML=''; return; }
+    card.style.display='';
+    list.innerHTML=cs.map(function(c){
+      var dt=new Date(c.when*1000).toLocaleString();
+      var tipo=c.tipo==='sms'?'📩 SMS':'📣 Voce';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
+        +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+'</div>'
+        +'<div class="dim" style="font-size:12px">🕒 '+_esc(dt)+'</div></div>'
+        +'<button class="btn tonal" style="width:auto" onclick="annullaProgrammato(\''+_esc(c.id)+'\')">✖ Annulla</button></div>';
+    }).join('');
+  }catch(e){ /* board non raggiungibile: lascia com'è */ }
+}
+async function annullaProgrammato(id){
+  if(!confirm('Annullare questo invio programmato?')) return;
+  try{
+    await post('/board/campaign/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)});
+    feedLine('ok','Invio programmato annullato');
+    await loadScheduled();
+  }catch(e){ alert('Errore: '+e.message); }
+}
+
+// ---- boot: da github.io scopre l'URL del backend dal Gist PRIMA di partire ----
+(async function boot(){
+  if(REMOTE){
+    API_BASE = await discoverBase();
+    if(!API_BASE){ $('bInfo').innerHTML='<span class="pill err">Centralina non raggiungibile</span> — il collegamento non è online. Riprova tra poco.'; }
+    var g=document.querySelector('a[href="/guida"]'); if(g && API_BASE) g.href=API_BASE+'/guida';   // Guida sul backend
+    if(!TOKEN){ promptToken(); return; }                                                            // serve il codice d'accesso
+  }
+  loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled();
+  setInterval(loadBoard,6000); setInterval(loadScheduled,15000);
+  // il tunnel cambia URL ai riavvii: ri-scopri ogni 30s e aggiorna la base senza ricaricare
+  if(REMOTE) setInterval(async function(){ var u=await discoverBase(); if(u && u!==API_BASE){ API_BASE=u; } }, 30000);
+})();
+</script>
+</body>
+</html>
