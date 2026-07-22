@@ -226,7 +226,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.16';
+var WEB_VERSION='v1.17';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
@@ -238,6 +238,8 @@ var API_BASE='';
 var TOKEN=localStorage.getItem('mnstr_token')||'';
 var REMOTE=(location.hostname.indexOf('github.io')>=0 || location.protocol==='file:');
 function apiUrl(p){ return API_BASE + p; }
+// URL per media caricati dai tag <audio>/<img> (non possono mandare header): token in query.
+function mediaUrl(p){ var u=apiUrl(p); u+=(u.indexOf('?')>=0?'&':'?')+'t='+Date.now(); if(TOKEN) u+='&token='+encodeURIComponent(TOKEN); return u; }
 function apiHeaders(extra){ var h=extra||{}; if(TOKEN) h['X-Access-Token']=TOKEN; return h; }
 var _prompting=false;
 async function gfetch(p,opts){
@@ -417,7 +419,7 @@ async function sendCampaign(btn){
 
 function setAudio(r){
   audioId=r.audio_id;
-  $('prev').src=apiUrl('/audio/'+r.audio_id+'.wav')+'?t='+Date.now();
+  $('prev').src=mediaUrl('/audio/'+r.audio_id+'.wav');
   $('ready').className='';
   $('btnSend').disabled=false;
   var s=Math.round((r.len||0)/16000); // ~ secondi @ wav 8k 16bit
@@ -650,7 +652,7 @@ async function loadJingles(){
   }catch(e){}
 }
 if($('jingleSel')) $('jingleSel').onchange=function(){ localStorage.setItem('mnstr_jingle', this.value); };
-if($('btnJinglePrev')) $('btnJinglePrev').onclick=function(){ var n=selJingle(); if(!n){ alert('Scegli un jingle'); return; } var a=$('jinglePrev'); a.src=apiUrl('/jingles/'+encodeURIComponent(n))+'?t='+Date.now(); a.play(); };
+if($('btnJinglePrev')) $('btnJinglePrev').onclick=function(){ var n=selJingle(); if(!n){ alert('Scegli un jingle'); return; } var a=$('jinglePrev'); a.src=mediaUrl('/jingles/'+encodeURIComponent(n)); a.play(); };
 if($('btnJingleUp')) $('btnJingleUp').onclick=async function(){
   var f=$('jingleFile').files[0]; if(!f){ alert('Scegli un file audio'); return; }
   var fd=new FormData(); fd.append('file',f); this.disabled=true;
