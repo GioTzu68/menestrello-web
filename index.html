@@ -341,7 +341,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.30';
+var WEB_VERSION='v1.31';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -914,9 +914,15 @@ async function loadScheduled(){
     // vista di default "Da inviare": solo non-ancora-partiti (pending) o in corso (running).
     if(schedFilter==='due') cs=cs.filter(function(c){ return c.stato==='pending' || c.stato==='running'; });
     cs.sort(function(a,b){ return (b.when|0)-(a.when|0); });
+    var moreN=0; if(schedFilter==='all' && cs.length>20){ moreN=cs.length-20; cs=cs.slice(0,20); } // evita liste enormi
     var card=$('schedCard'), list=$('schedList'); if(!card||!list) return;
-    if(!cs.length){ card.style.display='none'; list.innerHTML=''; return; }
-    card.style.display='';
+    card.style.display='';   // sempre visibile (con messaggio se vuoto), cosi' non "sparisce"
+    if(!cs.length){
+      list.innerHTML='<span class="dim">'+(schedFilter==='due'
+        ? 'Nessun invio in attesa. Quelli già partiti sono in «Tutti» e nello Storico.'
+        : 'Nessun invio programmato.')+'</span>';
+      return;
+    }
     list.innerHTML=cs.map(function(c){
       var dt=(c.when|0)>0 ? new Date(c.when*1000).toLocaleString() : '';
       var tipo=c.tipo==='sms'?'📩 SMS':'📣 Voce';
@@ -942,7 +948,7 @@ async function loadScheduled(){
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
         +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+' '+badge+'</div>'
         +(sub?'<div class="dim" style="font-size:12px">'+sub+'</div>':'')+'</div>'+btn+'</div>';
-    }).join('');
+    }).join('') + (moreN>0?'<div class="dim" style="padding:8px 2px;font-size:12px">…e altri '+moreN+' più vecchi (vedi Storico)</div>':'');
   }catch(e){ /* board non raggiungibile: lascia com'è */ }
 }
 async function rimuoviProgrammato(id){
