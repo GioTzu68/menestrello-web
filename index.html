@@ -317,7 +317,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.27';
+var WEB_VERSION='v1.28';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -634,13 +634,14 @@ var STATE={downloading:'scarico audio',calling:'sto chiamando',answered:'rispost
 // durante un bando la board non pubblica via MQTT (gBandoBusy) -> /status/<req> resta 404 e la
 // webapp restava "attendo la board" pur essendo completato (segnalazione Grazia). Logga a ogni
 // cambio di stato finche' done/error/interrotto.
-async function poll(id,n,last){
+async function poll(id,n,last,seen){
   if(n>120) return;
   var cur=last||'';
   try{
     var d=await (await gfetch('/board/status')).json();
     var b=d.bando||{};
     if(b.id===id){
+      seen=true;                              // la board HA preso in carico il comando
       var key=(b.state||'')+'|'+(b.detail||'');
       if(key!==cur){
         var st=b.state||'—'; var lab=STATE[st]||st;
@@ -651,7 +652,13 @@ async function poll(id,n,last){
       if(b.state==='done'||b.state==='error'||b.state==='interrotto') return;
     }
   }catch(e){}
-  setTimeout(function(){ poll(id,n+1,cur); },1500);
+  // Timeout di ricezione: se dopo ~20s la centralina non ha MAI preso in carico il comando
+  // (id mai comparso in /board/status), avvisa e ferma — evita l'attesa infinita "attendo la board".
+  if(!seen && n>=13){
+    log('<span class="pill err">non ricevuto</span> <span class="dim">La centralina non ha preso in carico il comando (forse era momentaneamente offline). Controlla lo stato in alto e premi di nuovo «Invia» per riprovare.</span>');
+    return;
+  }
+  setTimeout(function(){ poll(id,n+1,cur,seen); },1500);
 }
 // ---- stato centralina (da /health) ----
 async function loadBoard(){
