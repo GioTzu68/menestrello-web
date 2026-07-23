@@ -290,7 +290,7 @@ audio{width:100%;margin-top:10px}
     <h2>Storico invii</h2>
     <div class="dim" style="margin-bottom:10px">Tutti gli invii (bandi, SMS, chiamate) con data e ora, salvati sulla microSD della centralina.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn tonal" onclick="showStorico()" style="width:auto">👁 Mostra</button>
+      <button class="btn tonal" onclick="showStorico()" style="width:auto">🔄 Aggiorna</button>
       <button class="btn tonal" onclick="dlStorico('log.csv','storico_invii.csv')" style="width:auto">⬇ Scarica CSV</button>
       <button class="btn tonal" onclick="dlStorico('log','eventi.txt')" style="width:auto">⬇ Scarica TXT</button>
     </div>
@@ -341,7 +341,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.31';
+var WEB_VERSION='v1.32';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -351,6 +351,7 @@ function showView(v){
   document.querySelectorAll('.sec').forEach(function(el){ el.classList.toggle('sechide', !el.classList.contains('sec-'+v)); });
   document.querySelectorAll('.subnav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
   window.scrollTo(0,0);
+  if(v==='storico' && typeof showStorico==='function') showStorico();   // storico sempre fresco all'apertura
 }
 showView('invia');   // vista iniziale
 
