@@ -326,9 +326,21 @@ audio{width:100%;margin-top:10px}
     </div>
     <button class="btn tonal" onclick="suoBuildGrid()" style="width:auto;margin-top:8px">↻ Aggiorna griglia</button>
     <div id="suoGrid" style="overflow-x:auto;margin-top:12px"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <div style="margin-top:14px;border-top:1px solid #223;padding-top:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px">🎙️ Registra suonando</div>
+      <div class="dim" style="font-size:12px;margin-bottom:8px">Premi «Registra» e suona le campane a tempo (coi tasti qui sotto o con una tastiera MIDI): i tocchi finiscono nella griglia, quantizzati sul BPM.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="suoRecBtn" onclick="suoRecordToggle()" style="width:auto;margin:0">🔴 Registra</button>
+        <button class="btn tonal" id="suoMidiBtn" onclick="suoMidiToggle()" style="width:auto;margin:0">🎹 MIDI: off</button>
+      </div>
+      <div id="suoTapPad" style="display:none;margin-top:10px"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn" onclick="suoSave()" style="width:auto">💾 Salva suonata</button>
       <button class="btn tonal" onclick="suoClear()" style="width:auto">🗑 Nuova / svuota</button>
+      <button class="btn tonal" onclick="suoExport()" style="width:auto">⬇️ Esporta</button>
+      <button class="btn tonal" onclick="document.getElementById('suoImportFile').click()" style="width:auto">⬆️ Importa</button>
+      <input type="file" id="suoImportFile" accept=".json" style="display:none" onchange="suoImport(this)">
     </div>
     <div style="font-weight:700;font-size:13px;margin:16px 0 6px">Suonate salvate</div>
     <div id="suoList" class="dim">—</div>
@@ -342,7 +354,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.35';
+var WEB_VERSION='v1.36';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -1108,6 +1120,61 @@ function suoOpen(s){
 async function suoDel(id){ if(!confirm('Eliminare la suonata?')) return;
   try{ await post('/board/suonate/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)}); loadSuonate(); }
   catch(e){ alert('Errore: '+e.message); }
+}
+// ---- Editor milestone 2: registra-suonando (tap) + MIDI-in + import/export ----
+var SUOREC={on:false,t0:0,gen:0};
+function suoStepMs(){ return 15000/SUO.bpm; }   // 4 passi = 1 battito (16esimi)
+function suoTap(b){
+  if(!SUOREC.on) return;
+  var t=Math.round((Date.now()-SUOREC.t0)/suoStepMs());
+  if(t<0||t>=SUO.steps) return;
+  SUO.on[suoKey(t,b)]=1;
+  var td=document.querySelector('[data-k="'+suoKey(t,b)+'"]'); if(td) td.style.background=suoCellBg(t,b);
+}
+function suoRecordToggle(){
+  var btn=$('suoRecBtn'), pad=$('suoTapPad');
+  if(!SUOREC.on){
+    SUOREC.on=true; SUOREC.t0=Date.now(); SUOREC.gen++; var g=SUOREC.gen;
+    btn.textContent='⏹ Ferma';
+    var h='<div class="dim" style="font-size:12px;margin-bottom:6px">🔴 In registrazione — tocca le campane a tempo:</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+    for(var b=0;b<SUO.bells;b++) h+='<button class="btn tonal" style="width:auto;margin:0;min-width:60px;font-size:16px" onmousedown="suoTap('+b+')" ontouchstart="event.preventDefault();suoTap('+b+')">🔔 '+(b+1)+'</button>';
+    pad.innerHTML=h+'</div>'; pad.style.display='';
+    setTimeout(function(){ if(SUOREC.on&&SUOREC.gen===g) suoRecordToggle(); }, suoStepMs()*SUO.steps+300);   // auto-stop a fine griglia
+  } else {
+    SUOREC.on=false; btn.textContent='🔴 Registra'; pad.style.display='none';
+  }
+}
+var SUOMIDI={access:null,on:false};
+async function suoMidiToggle(){
+  if(!navigator.requestMIDIAccess){ alert('Il browser non supporta Web MIDI. Usa Chrome o Edge su desktop.'); return; }
+  if(!SUOMIDI.on){
+    try{
+      SUOMIDI.access=await navigator.requestMIDIAccess();
+      var bind=function(){ SUOMIDI.access.inputs.forEach(function(inp){ inp.onmidimessage=suoMidiMsg; }); };
+      bind(); SUOMIDI.access.onstatechange=bind;
+      SUOMIDI.on=true; var n=SUOMIDI.access.inputs.size;
+      $('suoMidiBtn').textContent='🎹 MIDI: on'+(n?(' ('+n+' dispos.)'):' (collega la tastiera)');
+    }catch(e){ alert('MIDI non disponibile: '+e.message); }
+  } else {
+    if(SUOMIDI.access) SUOMIDI.access.inputs.forEach(function(inp){ inp.onmidimessage=null; });
+    SUOMIDI.on=false; $('suoMidiBtn').textContent='🎹 MIDI: off';
+  }
+}
+function suoMidiMsg(ev){
+  var d=ev.data; if((d[0]&0xf0)!==0x90 || d[2]===0) return;   // note-on velocity>0
+  suoTap(d[1]%SUO.bells);                                      // nota -> campana (registra se REC attivo)
+}
+function suoExport(){
+  var nome=$('suoNome').value.trim()||'suonata';
+  var events=[]; Object.keys(SUO.on).forEach(function(k){ var p=k.split(':'); events.push({b:parseInt(p[0]),t:parseInt(p[1])}); });
+  var blob=new Blob([JSON.stringify({nome:nome,bpm:SUO.bpm,bells:SUO.bells,steps:SUO.steps,events:events},null,2)],{type:'application/json'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome.replace(/[^a-z0-9]+/gi,'_')+'.json'; document.body.appendChild(a); a.click(); a.remove();
+}
+function suoImport(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){ try{ suoOpen(JSON.parse(rd.result)); feedLine('ok','Suonata importata (ricordati di Salvare per metterla sulla centralina)'); }catch(e){ alert('File non valido: '+e.message); } };
+  rd.readAsText(f); inp.value='';
 }
 
 // ---- Concento (campane): config + prova ----
