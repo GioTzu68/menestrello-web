@@ -37,6 +37,10 @@ audio{width:100%;margin-top:10px}
 .warn{background:rgba(255,180,60,.18);color:#ffb43c}
 .err{background:rgba(255,82,82,.18);color:#ff5252}
 #log{font-size:13px;line-height:1.7}
+.subnav{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch}
+.subnav button{flex:0 0 auto;background:var(--field);border:1px solid #223;border-radius:20px;color:var(--muted);padding:9px 15px;font-weight:700;font-size:14px;cursor:pointer}
+.subnav button.on{background:var(--teal);color:#04121a;border-color:var(--teal)}
+.sechide{display:none!important}
 </style>
 </head>
 <body>
@@ -52,7 +56,14 @@ audio{width:100%;margin-top:10px}
     <div id="bInfo" class="dim">verifico…</div>
   </div>
 
-  <div class="card">
+  <nav class="subnav">
+    <button class="on" data-v="invia" onclick="showView('invia')">📣 Invia</button>
+    <button data-v="rubrica" onclick="showView('rubrica')">📇 Rubrica</button>
+    <button data-v="storico" onclick="showView('storico')">📜 Storico</button>
+    <button data-v="impostazioni" onclick="showView('impostazioni')">⚙️ Impostazioni</button>
+  </nav>
+
+  <div class="card sec sec-invia">
     <h2>Cosa vuoi inviare</h2>
     <div class="tabs">
       <div class="tab on" id="ch-voce" data-ch="voce">📣 Bando (voce)</div>
@@ -60,13 +71,13 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card" id="smsCard" style="display:none">
+  <div class="card sec sec-invia" id="smsCard" style="display:none">
     <h2>Testo dell'SMS</h2>
     <textarea id="smsTxt" placeholder="Es. Si avvisa la cittadinanza che domani..."></textarea>
     <div class="dim" id="smsLen" style="margin-top:6px">0 caratteri</div>
   </div>
 
-  <div class="card" id="composeCard">
+  <div class="card sec sec-invia" id="composeCard">
     <h2>1 · Componi il bando</h2>
     <div class="tabs">
       <div class="tab on" data-s="testo">Testo → voce</div>
@@ -115,7 +126,7 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-invia">
     <h2>2 · Destinatario</h2>
     <div class="tabs">
       <div class="tab on" id="d-singolo" data-d="singolo">👤 Singolo</div>
@@ -143,7 +154,7 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-invia">
     <h2>3 · Quando</h2>
     <div class="tabs">
       <div class="tab on" id="w-subito" data-w="subito">⚡ Subito</div>
@@ -218,7 +229,7 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-rubrica">
     <h2>Rubrica <span class="dim" style="font-weight:400;font-size:12px">· sulla centralina</span></h2>
 
     <div style="font-weight:700;font-size:13px;margin:2px 0 6px">Gruppi</div>
@@ -256,20 +267,20 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <button class="btn" id="btnSend" disabled>📣 Invia bando</button>
+  <button class="btn sec sec-invia" id="btnSend" disabled>📣 Invia bando</button>
 
-  <div class="card" id="statusCard" style="margin-top:14px">
+  <div class="card sec sec-invia" id="statusCard" style="margin-top:14px">
     <h2>Stato</h2>
     <div id="log" class="dim">Componi un audio e premi «Invia bando».</div>
   </div>
 
-  <div class="card" id="schedCard" style="display:none">
+  <div class="card sec sec-invia" id="schedCard" style="display:none">
     <h2>Invii programmati</h2>
     <div class="dim" style="margin-bottom:10px">Invii impostati per un orario futuro, non ancora partiti. Puoi annullarli finché la centralina non li invia.</div>
     <div id="schedList"></div>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-storico">
     <h2>Storico invii</h2>
     <div class="dim" style="margin-bottom:10px">Tutti gli invii (bandi, SMS, chiamate) con data e ora, salvati sulla microSD della centralina.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -280,7 +291,7 @@ audio{width:100%;margin-top:10px}
     <pre id="storicoView" style="display:none;white-space:pre-wrap;word-break:break-word;background:var(--field,#0f141e);padding:10px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto;margin-top:10px"></pre>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-imp">
     <h2>🔔 Concento (campane)</h2>
     <div class="dim" style="margin-bottom:10px">Rintocchi automatici di ore, quarti e Angelus; silenzia la Settimana Santa (calendario liturgico calcolato dalla centralina). In demo suonano sullo speaker locale.</div>
     <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coEnabled" style="width:auto;margin:0">Attiva campane</label>
@@ -297,7 +308,7 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card sec sec-imp">
     <h2>Info</h2>
     <div id="infoBox" class="dim">…</div>
     <a class="btn tonal" href="#" onclick="location.reload();return false" style="margin-top:10px">↻ Ricarica</a>
@@ -305,9 +316,18 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.22';
+var WEB_VERSION='v1.23';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
+// ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
+// Le card con display gestito da altra logica (smsCard/schedCard) restano coerenti: .sechide
+// (display:none!important) le nasconde fuori vista; dentro vista torna a valere il loro display.
+function showView(v){
+  document.querySelectorAll('.sec').forEach(function(el){ el.classList.toggle('sechide', !el.classList.contains('sec-'+v)); });
+  document.querySelectorAll('.subnav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
+  window.scrollTo(0,0);
+}
+showView('invia');   // vista iniziale
 
 // ---- base API + token (per link stabile su GitHub Pages) ----
 // Servita dal backend (stessa origine) -> URL relativi. Su github.io/file: -> scopre il backend
@@ -441,9 +461,20 @@ async function loadGroups(){
 
 // feed live (righe che si accumulano)
 function feedLine(cls,txt){ var d=document.createElement('div'); d.style.margin='4px 0'; d.innerHTML='<span class="pill '+cls+'">•</span> '+txt; $('log').appendChild(d); }
+// ricevuta chiara: icona per esito, cosi' l'operatrice vede "cosa e' arrivato" a colpo d'occhio
 function feedState(state,detail){
-  var cls=(state==='sms-ok'||state==='sent'||state==='done')?'ok':(state==='sms-err'||state==='error')?'err':(state==='interrotto')?'warn':'ok';
-  feedLine(cls, detail||state);
+  var d=detail||state, ic='', cls='ok';
+  if(state==='answered'){ ic='✅ '; d='Risposto'+(detail?(': '+detail):''); }
+  else if(state==='done'){ ic='🏁 '; cls='ok'; }
+  else if(state==='interrotto'){ ic='■ '; cls='warn'; }
+  else if(state==='error'){ cls='err'; var t=(''+d).toLowerCase();
+    ic = t.indexOf('occupat')>=0?'📵 ' : t.indexOf('rifiut')>=0?'⛔ ' : t.indexOf('non rispond')>=0?'🔕 ' : '❌ '; }
+  else if(state==='sms-ok'){ ic='✅ '; }
+  else if(state==='sms-err'){ ic='❌ '; cls='err'; }
+  else if(state==='calling'||state==='campaign'){ ic='📞 '; }
+  else if(state==='playing'){ ic='🔊 '; }
+  else if(state==='dtmf'){ ic='🔢 '; }
+  feedLine(cls, ic+d);
 }
 // legge il LOG eventi della board per numero di sequenza: nessuno stato viene perso
 // (il polling "a fotografie" saltava i destinatari veloci -> primo SMS mancante nel feed).
@@ -454,7 +485,10 @@ function pollCampaign(cid,n){
     var b=d.bando||{}, log=b.log||[], done=false;
     log.forEach(function(e){
       if(e.seq>CSEEN){ CSEEN=e.seq; feedState(e.state, e.detail);
-        if(['done','error','interrotto'].indexOf(e.state)>=0) done=true; }
+        // solo 'done'/'interrotto' chiudono la CAMPAGNA. Un 'error' per-destinatario (es. "non
+        // risponde"/"occupato") NON e' terminale: la board prosegue col contatto successivo
+        // (baco Grazia: il feed si fermava sul 1o pallino rosso e non mostrava il 2o numero).
+        if(['done','interrotto'].indexOf(e.state)>=0) done=true; }
     });
     if(done) return;
     setTimeout(function(){ pollCampaign(cid,n+1); },800);
@@ -660,20 +694,69 @@ $('rubricaSel').onchange=function(){
   updateSendEnabled();
 };
 // --- gruppi ---
+// membri del gruppo nell'ORDINE effettivo: prima quelli in g.order (se ancora membri),
+// poi i restanti in ordine di salvataggio. Sorgente unica dell'ordine mostrato/salvato.
+function orderedMembers(g){
+  var members=RUB.contacts.filter(function(c){return (c.groups||[]).indexOf(g.id)>=0;});
+  var byId={}; members.forEach(function(c){byId[c.id]=c;});
+  var out=[], used={};
+  (g.order||[]).forEach(function(cid){ if(byId[cid]&&!used[cid]){ out.push(byId[cid]); used[cid]=1; } });
+  members.forEach(function(c){ if(!used[c.id]){ out.push(c); used[c.id]=1; } });
+  return out;
+}
 function renderGroupsMgr(){
   var el=$('grpMgr');
   if(!RUB.groups.length){ el.innerHTML='<span class="dim">nessun gruppo</span>'; return; }
   el.innerHTML='';
   RUB.groups.forEach(function(g){
-    var n=RUB.contacts.filter(function(c){return (c.groups||[]).indexOf(g.id)>=0;}).length;
-    var d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1c2733';
+    var mem=orderedMembers(g), n=mem.length;
+    var wrap=document.createElement('div'); wrap.style.cssText='padding:6px 0;border-bottom:1px solid #1c2733';
+    var d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:8px';
     d.innerHTML='<span style="flex:1"><b>'+g.nome+'</b> <span class="dim">'+n+' contatt'+(n===1?'o':'i')+'</span></span>';
+    if(n>1){
+      var ord=document.createElement('button'); ord.textContent='↕ ordina'; ord.style.cssText='background:none;border:none;color:var(--teal);cursor:pointer;font:inherit;font-size:12px';
+      ord.onclick=function(){ var p=document.getElementById('ord-'+g.id); var show=(p.style.display==='none'); p.style.display=show?'':'none'; if(show) renderOrderPanel(g.id); };
+      d.appendChild(ord);
+    }
     var ren=document.createElement('button'); ren.textContent='rinomina'; ren.style.cssText='background:none;border:none;color:var(--teal);cursor:pointer;font:inherit;font-size:12px';
     ren.onclick=function(){ var nn=prompt('Nuovo nome per "'+g.nome+'":',g.nome); if(nn&&nn.trim()) saveGroup(g.id,nn.trim()); };
     var del=document.createElement('button'); del.textContent='elimina'; del.style.cssText='background:none;border:none;color:#ff5252;cursor:pointer;font:inherit;font-size:12px';
     del.onclick=function(){ if(confirm('Eliminare il gruppo "'+g.nome+'"? I contatti restano in rubrica.')) delGroup(g.id); };
-    d.appendChild(ren); d.appendChild(del); el.appendChild(d);
+    d.appendChild(ren); d.appendChild(del);
+    wrap.appendChild(d);
+    var panel=document.createElement('div'); panel.id='ord-'+g.id; panel.style.cssText='display:none;margin-top:8px';
+    wrap.appendChild(panel);
+    el.appendChild(wrap);
   });
+}
+// pannello ordinamento contatti del gruppo, con frecce ▲▼ (muovi su/giu')
+function renderOrderPanel(gid){
+  var g=RUB.groups.filter(function(x){return x.id===gid;})[0]; if(!g) return;
+  var panel=document.getElementById('ord-'+gid); if(!panel) return;
+  var mem=orderedMembers(g);
+  panel.innerHTML='<div class="dim" style="font-size:12px;margin-bottom:6px">Ordine di chiamata (1° = chiamato per primo)</div>';
+  mem.forEach(function(c,i){
+    var r=document.createElement('div'); r.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 0';
+    r.innerHTML='<span class="dim" style="width:24px;text-align:right">'+(i+1)+'.</span><span style="flex:1">'+cNome(c)+' <span class="dim">'+c.numero+'</span></span>';
+    var up=document.createElement('button'); up.textContent='▲'; up.disabled=(i===0);
+    up.style.cssText='background:#22303f;border:none;border-radius:6px;color:var(--txt);cursor:pointer;padding:4px 10px;font:inherit;opacity:'+(i===0?'.35':'1');
+    up.onclick=function(){ moveMember(gid,i,-1); };
+    var dn=document.createElement('button'); dn.textContent='▼'; dn.disabled=(i===mem.length-1);
+    dn.style.cssText='background:#22303f;border:none;border-radius:6px;color:var(--txt);cursor:pointer;padding:4px 10px;font:inherit;opacity:'+(i===mem.length-1?'.35':'1');
+    dn.onclick=function(){ moveMember(gid,i,1); };
+    r.appendChild(up); r.appendChild(dn); panel.appendChild(r);
+  });
+}
+async function moveMember(gid,i,dir){
+  var g=RUB.groups.filter(function(x){return x.id===gid;})[0]; if(!g) return;
+  var mem=orderedMembers(g), j=i+dir; if(j<0||j>=mem.length) return;
+  var t=mem[i]; mem[i]=mem[j]; mem[j]=t;
+  var ids=mem.map(function(c){return c.id;});
+  try{
+    await post('/board/group/order',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(gid)+'&order='+encodeURIComponent(ids.join(','))});
+    g.order=ids;                 // aggiorna cache locale e ridisegna
+    renderOrderPanel(gid);
+  }catch(e){ alert('Errore: '+e.message); }
 }
 async function saveGroup(id,nome){ try{ await post('/board/group',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id||'')+'&nome='+encodeURIComponent(nome)}); await loadRubrica(); if(dest==='gruppi') loadGroups(); }catch(e){ alert('Errore: '+e.message); } }
 async function delGroup(id){ try{ await post('/board/group/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)}); await loadRubrica(); if(dest==='gruppi') loadGroups(); }catch(e){ alert('Errore: '+e.message); } }
