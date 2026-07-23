@@ -47,7 +47,8 @@ audio{width:100%;margin-top:10px}
 <div class="bar">
   <svg viewBox="0 0 24 24"><path d="M9 3l10-2v4L11 6.6V17a3.5 3 0 1 1-2-2.8V3z"/><circle cx="18" cy="15" r="2.6"/></svg>
   <div class="title">Menestrello — invia bando</div>
-  <a href="/guida" target="_blank" style="margin-left:auto;color:var(--teal);text-decoration:none;font-weight:700;font-size:14px;background:#22303f;padding:7px 12px;border-radius:9px">📖 Guida</a>
+  <a href="#" title="Ricarica aggiornando (svuota la cache)" onclick="location.href=location.pathname+'?r='+Date.now();return false" style="margin-left:auto;color:var(--teal);text-decoration:none;font-weight:700;font-size:14px;background:#22303f;padding:7px 12px;border-radius:9px">🔄 Ricarica</a>
+  <a href="/guida" target="_blank" style="margin-left:8px;color:var(--teal);text-decoration:none;font-weight:700;font-size:14px;background:#22303f;padding:7px 12px;border-radius:9px">📖 Guida</a>
 </div>
 <div class="wrap">
 
@@ -316,7 +317,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.25';
+var WEB_VERSION='v1.26';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
