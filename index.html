@@ -278,6 +278,10 @@ audio{width:100%;margin-top:10px}
   <div class="card sec sec-invia" id="schedCard" style="display:none">
     <h2>Invii programmati</h2>
     <div class="dim" style="margin-bottom:10px">Invii programmati e ricorrenti: prossima esecuzione, avanzamento ed <b>esito quando partono</b> (senza aprire lo storico).</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="btn" id="schedFdue" style="width:auto;margin:0;padding:8px 14px" onclick="setSchedFilter('due')">Da inviare</button>
+      <button class="btn tonal" id="schedFall" style="width:auto;margin:0;padding:8px 14px" onclick="setSchedFilter('all')">Tutti</button>
+    </div>
     <div id="schedList"></div>
   </div>
 
@@ -317,7 +321,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.28';
+var WEB_VERSION='v1.29';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -602,7 +606,7 @@ $('btnUp').onclick=function(){
 };
 async function loadModels(tries){
   tries=tries||0; var el=$('models');
-  try{ var r=await post('/models',{}); el.innerHTML='';
+  try{ var r=await (await gfetch('/models')).json(); el.innerHTML='';   // GET: il backend espone GET /models (POST dava 405 -> "modelli non disponibili")
     if(!r.models||!r.models.length){ el.innerHTML='<span class="dim">nessun modello disponibile</span>'; return; }
     r.models.forEach(function(m){ var b=document.createElement('button'); b.textContent=m.label;
       b.onclick=async function(){ try{ busy(1,'Preparo il modello'); setAudio(await post('/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:m.name})}));
@@ -874,12 +878,21 @@ async function dlStorico(path,fname){
 
 // ---- Invii programmati: elenco + annulla ----
 function _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+var schedFilter='due';   // 'due' = solo da inviare (default) · 'all' = tutti (con esiti)
+function setSchedFilter(f){
+  schedFilter=f;
+  $('schedFdue').className='btn'+(f==='due'?'':' tonal');
+  $('schedFall').className='btn'+(f==='all'?'':' tonal');
+  loadScheduled();
+}
 async function loadScheduled(){
   try{
     var r=await (await gfetch('/board/campaigns')).json();
     // programmati/ricorrenti (futuri) + quelli scheduled che sono PARTITI (in corso/esito),
     // cosi' l'operatore vede l'esito senza aprire lo storico (segnalazione Grazia).
     var cs=(r.campaigns||[]).filter(function(c){ return (c.when|0)>0 || c.recur; });
+    // vista di default "Da inviare": solo non-ancora-partiti (pending) o in corso (running).
+    if(schedFilter==='due') cs=cs.filter(function(c){ return c.stato==='pending' || c.stato==='running'; });
     cs.sort(function(a,b){ return (b.when|0)-(a.when|0); });
     var card=$('schedCard'), list=$('schedList'); if(!card||!list) return;
     if(!cs.length){ card.style.display='none'; list.innerHTML=''; return; }
