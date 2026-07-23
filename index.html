@@ -341,13 +341,15 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.32';
+var WEB_VERSION='v1.33';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
 // Le card con display gestito da altra logica (smsCard/schedCard) restano coerenti: .sechide
 // (display:none!important) le nasconde fuori vista; dentro vista torna a valere il loro display.
+var curView='invia';   // vista attiva (per l'auto-refresh dello storico)
 function showView(v){
+  curView=v;
   document.querySelectorAll('.sec').forEach(function(el){ el.classList.toggle('sechide', !el.classList.contains('sec-'+v)); });
   document.querySelectorAll('.subnav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
   window.scrollTo(0,0);
@@ -877,14 +879,17 @@ if($('btnJingleUp')) $('btnJingleUp').onclick=async function(){
 };
 
 // ---- Storico invii: vista + download (CSV/TXT) via proxy board ----
-async function showStorico(){
-  var el=$('storicoView'); el.style.display='block'; el.textContent='Carico…';
+async function showStorico(auto){
+  var el=$('storicoView'); el.style.display='block'; if(!auto) el.textContent='Carico…';
   try{
     var r=await gfetch('/board/log');
-    if(!r.ok){ el.textContent='Storico non disponibile ('+r.status+')'; return; }
-    var t=await r.text(); el.textContent=(t&&t.trim())?t:'(nessun evento registrato)';
-    el.scrollTop=el.scrollHeight;   // i più recenti sono in fondo
-  }catch(e){ el.textContent='Errore: '+e.message; }
+    if(!r.ok){ if(!auto) el.textContent='Storico non disponibile ('+r.status+')'; return; }
+    var t=await r.text();
+    // se in auto-refresh e l'utente sta leggendo piu' su, NON saltare al fondo
+    var nearBottom=(el.scrollHeight-el.scrollTop-el.clientHeight)<40;
+    el.textContent=(t&&t.trim())?t:'(nessun evento registrato)';
+    if(!auto || nearBottom) el.scrollTop=el.scrollHeight;   // i più recenti sono in fondo
+  }catch(e){ if(!auto) el.textContent='Errore: '+e.message; }
 }
 async function dlStorico(path,fname){
   try{
@@ -1119,6 +1124,7 @@ async function testConcento(){
   loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled(); loadConcento();
   suoBuildGrid(); loadSuonate();   // editor suonate Concento
   setInterval(loadBoard,6000); setInterval(loadScheduled,15000);
+  setInterval(function(){ if(curView==='storico') showStorico(true); },12000);   // storico live mentre la scheda è aperta
   // il tunnel cambia URL ai riavvii: ri-scopri ogni 30s e aggiorna la base senza ricaricare
   if(REMOTE) setInterval(async function(){ var u=await discoverBase(); if(u && u!==API_BASE){ API_BASE=u; } }, 30000);
 })();
