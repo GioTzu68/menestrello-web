@@ -61,6 +61,7 @@ audio{width:100%;margin-top:10px}
     <button class="on" data-v="invia" onclick="showView('invia')">📣 Invia</button>
     <button data-v="rubrica" onclick="showView('rubrica')">📇 Rubrica</button>
     <button data-v="storico" onclick="showView('storico')">📜 Storico</button>
+    <button data-v="concento" onclick="showView('concento')">🔔 Concento</button>
     <button data-v="impostazioni" onclick="showView('impostazioni')">⚙️ Impostazioni</button>
   </nav>
 
@@ -296,8 +297,8 @@ audio{width:100%;margin-top:10px}
     <pre id="storicoView" style="display:none;white-space:pre-wrap;word-break:break-word;background:var(--field,#0f141e);padding:10px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto;margin-top:10px"></pre>
   </div>
 
-  <div class="card sec sec-impostazioni">
-    <h2>🔔 Concento (campane)</h2>
+  <div class="card sec sec-concento">
+    <h2>🔔 Concento — rintocchi</h2>
     <div class="dim" style="margin-bottom:10px">Rintocchi automatici di ore, quarti e Angelus; silenzia la Settimana Santa (calendario liturgico calcolato dalla centralina). In demo suonano sullo speaker locale.</div>
     <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coEnabled" style="width:auto;margin:0">Attiva campane</label>
     <div class="row" style="margin-top:8px">
@@ -313,6 +314,25 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
+  <div class="card sec sec-concento">
+    <h2>🎼 Editor suonate</h2>
+    <div class="dim" style="margin-bottom:10px">Righe = campane, colonne = battute. Tocca le celle per mettere i rintocchi, dai un nome e Salva. (La riproduzione arriverà con l'amplificatore collegato.)</div>
+    <div class="row" style="align-items:flex-end">
+      <div style="flex:2"><label>Nome suonata</label><input type="text" id="suoNome" placeholder="es. Suonata a festa"></div>
+      <div><label>Campane</label><input type="number" id="suoBells" value="4" min="2" max="8"></div>
+      <div><label>Battute</label><input type="number" id="suoSteps" value="16" min="4" max="64"></div>
+      <div><label>BPM</label><input type="number" id="suoBpm" value="90" min="30" max="240"></div>
+    </div>
+    <button class="btn tonal" onclick="suoBuildGrid()" style="width:auto;margin-top:8px">↻ Aggiorna griglia</button>
+    <div id="suoGrid" style="overflow-x:auto;margin-top:12px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn" onclick="suoSave()" style="width:auto">💾 Salva suonata</button>
+      <button class="btn tonal" onclick="suoClear()" style="width:auto">🗑 Nuova / svuota</button>
+    </div>
+    <div style="font-weight:700;font-size:13px;margin:16px 0 6px">Suonate salvate</div>
+    <div id="suoList" class="dim">—</div>
+  </div>
+
   <div class="card sec sec-impostazioni">
     <h2>Info</h2>
     <div id="infoBox" class="dim">…</div>
@@ -321,7 +341,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.29';
+var WEB_VERSION='v1.30';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -1002,6 +1022,63 @@ if($('codiceOn')) $('codiceOn').onchange=function(){ syncCodice(); updateSendEna
 if($('cCodiceOn')) $('cCodiceOn').onchange=syncCCodice;
 syncCodice();
 
+// ---- Concento: EDITOR SUONATE (griglia campane × battute) ----
+var SUO={bells:4,steps:16,bpm:90,on:{},id:''};
+function suoKey(t,b){ return b+':'+t; }
+function suoCellBg(t,b){ return SUO.on[suoKey(t,b)]?'var(--teal)':((t%4===0)?'#161d29':'var(--field)'); }
+function suoBuildGrid(){
+  SUO.bells=Math.max(2,Math.min(8,parseInt($('suoBells').value)||4));
+  SUO.steps=Math.max(4,Math.min(64,parseInt($('suoSteps').value)||16));
+  SUO.bpm  =Math.max(30,Math.min(240,parseInt($('suoBpm').value)||90));
+  var h='<table style="border-collapse:collapse">';
+  for(var b=0;b<SUO.bells;b++){
+    h+='<tr><td style="padding:2px 8px;color:var(--muted);font-size:12px;white-space:nowrap">🔔 '+(b+1)+'</td>';
+    for(var t=0;t<SUO.steps;t++)
+      h+='<td onclick="suoToggle('+t+','+b+')" data-k="'+suoKey(t,b)+'" style="width:20px;height:24px;border:1px solid #223;cursor:pointer;background:'+suoCellBg(t,b)+'"></td>';
+    h+='</tr>';
+  }
+  h+='<tr><td></td>';
+  for(var t2=0;t2<SUO.steps;t2++) h+='<td style="text-align:center;color:var(--muted);font-size:10px">'+((t2%4===0)?(t2/4+1):'')+'</td>';
+  h+='</tr></table>';
+  $('suoGrid').innerHTML=h;
+}
+function suoToggle(t,b){ var k=suoKey(t,b); if(SUO.on[k]) delete SUO.on[k]; else SUO.on[k]=1;
+  var td=document.querySelector('[data-k="'+k+'"]'); if(td) td.style.background=suoCellBg(t,b); }
+function suoClear(){ SUO.on={}; SUO.id=''; $('suoNome').value=''; suoBuildGrid(); }
+async function suoSave(){
+  var nome=$('suoNome').value.trim(); if(!nome){ alert('Dai un nome alla suonata'); return; }
+  var events=[]; Object.keys(SUO.on).forEach(function(k){ var p=k.split(':'); events.push({b:parseInt(p[0]),t:parseInt(p[1])}); });
+  if(!events.length){ alert('Metti almeno un rintocco'); return; }
+  var suo={id:SUO.id||'',nome:nome,bpm:SUO.bpm,bells:SUO.bells,steps:SUO.steps,events:events};
+  try{ var r=await post('/board/suonate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(suo)});
+    if(r&&r.id) SUO.id=r.id; loadSuonate(); feedLine('ok','Suonata «'+nome+'» salvata'); }
+  catch(e){ alert('Salvataggio non riuscito (serve la centralina aggiornata): '+e.message); }
+}
+async function loadSuonate(){
+  var el=$('suoList'); if(!el) return;
+  try{ var r=await (await gfetch('/board/suonate')).json(); var arr=r.suonate||[];
+    if(!arr.length){ el.innerHTML='<span class="dim">nessuna suonata salvata</span>'; return; }
+    el.innerHTML='';
+    arr.forEach(function(s){
+      var d=document.createElement('div'); d.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1c2733';
+      d.innerHTML='<span style="flex:1">🎼 '+_esc(s.nome||'(senza nome)')+' <span class="dim">'+((s.events||[]).length)+' rintocchi · '+(s.bpm||90)+' BPM</span></span>';
+      var op=document.createElement('button'); op.textContent='apri'; op.className='btn tonal'; op.style.cssText='width:auto;margin:0;padding:6px 12px'; op.onclick=function(){ suoOpen(s); };
+      var dl=document.createElement('button'); dl.textContent='elimina'; dl.className='btn tonal'; dl.style.cssText='width:auto;margin:0;padding:6px 12px'; dl.onclick=function(){ suoDel(s.id); };
+      d.appendChild(op); d.appendChild(dl); el.appendChild(d);
+    });
+  }catch(e){ el.innerHTML='<span class="dim">non disponibili (serve la centralina aggiornata)</span>'; }
+}
+function suoOpen(s){
+  SUO.id=s.id||''; $('suoNome').value=s.nome||'';
+  $('suoBells').value=s.bells||4; $('suoSteps').value=s.steps||16; $('suoBpm').value=s.bpm||90;
+  SUO.on={}; (s.events||[]).forEach(function(e){ SUO.on[suoKey(e.t,e.b)]=1; });
+  suoBuildGrid();
+}
+async function suoDel(id){ if(!confirm('Eliminare la suonata?')) return;
+  try{ await post('/board/suonate/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)}); loadSuonate(); }
+  catch(e){ alert('Errore: '+e.message); }
+}
+
 // ---- Concento (campane): config + prova ----
 async function loadConcento(){
   try{ var c=await (await gfetch('/board/concento')).json();
@@ -1033,6 +1110,7 @@ async function testConcento(){
     if(!TOKEN){ promptToken(); return; }                                                            // serve il codice d'accesso
   }
   loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled(); loadConcento();
+  suoBuildGrid(); loadSuonate();   // editor suonate Concento
   setInterval(loadBoard,6000); setInterval(loadScheduled,15000);
   // il tunnel cambia URL ai riavvii: ri-scopri ogni 30s e aggiorna la base senza ricaricare
   if(REMOTE) setInterval(async function(){ var u=await discoverBase(); if(u && u!==API_BASE){ API_BASE=u; } }, 30000);
