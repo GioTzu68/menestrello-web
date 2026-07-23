@@ -341,7 +341,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.33';
+var WEB_VERSION='v1.34';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -428,7 +428,7 @@ async function sendSms(btn){
     log('<span class="pill warn">Invio SMS…</span>');
     var r=await post('/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({numero:numero,testo:testo})});
     log('<span class="pill ok">richiesta inviata</span> '+r.req_id+' — attendo la board…');
-    poll(r.req_id,0);
+    startPoll(r.req_id);
   }catch(e){ log('<span class="pill err">Errore invio SMS: '+e.message+'</span>'); }
   btn.disabled=false;
 }
@@ -492,16 +492,20 @@ function feedLine(cls,txt){ var d=document.createElement('div'); d.style.margin=
 // ricevuta chiara: icona per esito, cosi' l'operatrice vede "cosa e' arrivato" a colpo d'occhio
 function feedState(state,detail){
   var d=detail||state, ic='', cls='ok';
-  if(state==='answered'){ ic='✅ '; d='Risposto'+(detail?(': '+detail):''); }
-  else if(state==='done'){ ic='🏁 '; cls='ok'; }
+  if(state==='campaign'){ ic='📣 '; d=detail||'campagna'; }
+  else if(state==='calling'){ ic='📞 '; d='Chiamata'+(detail?(' a '+detail):''); }
+  else if(state==='downloading'){ ic='⬇️ '; d='Preparo l\'audio'; }
+  else if(state==='preparing'){ ic='⚙️ '; d=detail||'Preparo'; }
+  else if(state==='answered'){ ic='✅ '; d='Risposto'+(detail?(': '+detail):''); }
+  else if(state==='dtmf'){ ic='🔢 '; d=(detail && (''+detail).toLowerCase().indexOf('nessun')<0)?('Codice inviato: '+detail):'Nessun codice'; }
+  else if(state==='playing'){ ic='🔊 '; d='In riproduzione (jingle + messaggio)'; }
+  else if(state==='done'){ ic='🏁 '; cls='ok'; d=detail||'Completato'; }
   else if(state==='interrotto'){ ic='■ '; cls='warn'; }
   else if(state==='error'){ cls='err'; var t=(''+d).toLowerCase();
     ic = t.indexOf('occupat')>=0?'📵 ' : t.indexOf('rifiut')>=0?'⛔ ' : t.indexOf('non rispond')>=0?'🔕 ' : '❌ '; }
+  else if(state==='sms'){ ic='📩 '; }
   else if(state==='sms-ok'){ ic='✅ '; }
   else if(state==='sms-err'){ ic='❌ '; cls='err'; }
-  else if(state==='calling'||state==='campaign'){ ic='📞 '; }
-  else if(state==='playing'){ ic='🔊 '; }
-  else if(state==='dtmf'){ ic='🔢 '; }
   feedLine(cls, ic+d);
 }
 // legge il LOG eventi della board per numero di sequenza: nessuno stato viene perso
@@ -652,7 +656,7 @@ $('btnSend').onclick=async function(){
       numero:$('numero').value.trim(), codice:composeCodice(), audio_id:audioId,
       repeat:parseInt($('repeat').value||'0',10), stop_dtmf:$('stop').value, jingle:selJingle() })});
     log('<span class="pill ok">inviato</span> richiesta '+r.req_id+' — attendo la board…');
-    poll(r.req_id,0);
+    startPoll(r.req_id);
   }catch(e){ log('<span class="pill err">Errore invio: '+e.message+'</span>'); }
   this.disabled=false;
 };
@@ -661,31 +665,36 @@ var STATE={downloading:'scarico audio',calling:'sto chiamando',answered:'rispost
 // durante un bando la board non pubblica via MQTT (gBandoBusy) -> /status/<req> resta 404 e la
 // webapp restava "attendo la board" pur essendo completato (segnalazione Grazia). Logga a ogni
 // cambio di stato finche' done/error/interrotto.
-async function poll(id,n,last,seen){
+// Cattura il numero di sequenza attuale PRIMA di seguire, cosi' `poll` mostra solo gli eventi NUOVI.
+async function startPoll(reqId){
+  var base=0; try{ var s=await (await gfetch('/board/status')).json(); base=(s.bando&&s.bando.seq)||0; }catch(e){}
+  poll(reqId,0,base,false);
+}
+// Segue l'invio SINGOLO leggendo il LOG eventi per SEQUENZA (come le campagne): cosi' mostra TUTTE
+// le fasi (chiamata, risposta, codice DTMF, riproduzione, completato) e non solo lo stato finale
+// campionato — che perdeva le transizioni veloci (segnalazione utente: "non completo come lo storico").
+async function poll(id,n,lastSeq,seen){
   if(n>120) return;
-  var cur=last||'';
+  var seq=lastSeq||0;
   try{
     var d=await (await gfetch('/board/status')).json();
     var b=d.bando||{};
     if(b.id===id){
       seen=true;                              // la board HA preso in carico il comando
-      var key=(b.state||'')+'|'+(b.detail||'');
-      if(key!==cur){
-        var st=b.state||'—'; var lab=STATE[st]||st;
-        var cls=(st==='done')?'ok':(st==='error'?'err':'warn');
-        log('<span class="pill '+cls+'">'+lab+'</span> '+(b.detail?('<span class="dim">'+_esc(b.detail)+'</span>'):''));
-        cur=key;
-      }
-      if(b.state==='done'||b.state==='error'||b.state==='interrotto') return;
+      var done=false;
+      (b.log||[]).forEach(function(e){
+        if(e.seq>seq){ seq=e.seq; feedState(e.state, e.detail);
+          if(['done','error','interrotto'].indexOf(e.state)>=0) done=true; }
+      });
+      if(done) return;
     }
   }catch(e){}
-  // Timeout di ricezione: se dopo ~20s la centralina non ha MAI preso in carico il comando
-  // (id mai comparso in /board/status), avvisa e ferma — evita l'attesa infinita "attendo la board".
+  // Timeout di ricezione: se dopo ~20s la centralina non ha MAI preso in carico il comando -> avvisa.
   if(!seen && n>=13){
     log('<span class="pill err">non ricevuto</span> <span class="dim">La centralina non ha preso in carico il comando (forse era momentaneamente offline). Controlla lo stato in alto e premi di nuovo «Invia» per riprovare.</span>');
     return;
   }
-  setTimeout(function(){ poll(id,n+1,cur,seen); },1500);
+  setTimeout(function(){ poll(id,n+1,seq,seen); },1500);
 }
 // ---- stato centralina (da /health) ----
 async function loadBoard(){
