@@ -157,6 +157,7 @@ audio{width:100%;margin-top:10px}
         <option value="weekly">Ogni settimana</option>
         <option value="monthly_day">Ogni mese (giorno del mese)</option>
         <option value="monthly_nth">Ogni mese (es. ultimo sabato)</option>
+        <option value="annual">Una volta all'anno / festività</option>
       </select>
       <div id="recOnce" style="margin-top:8px">
         <label>Data e ora dell'invio</label>
@@ -181,6 +182,36 @@ audio{width:100%;margin-top:10px}
           <div><label>Giorno</label><select id="recNdow">
             <option value="1">Lunedì</option><option value="2">Martedì</option><option value="3">Mercoledì</option><option value="4">Giovedì</option><option value="5">Venerdì</option><option value="6">Sabato</option><option value="0">Domenica</option>
           </select></div>
+        </div>
+      </div>
+      <div id="recAnnual" style="display:none;margin-top:8px">
+        <label>Ricorrenza annuale / festività</label>
+        <select id="recHoliday">
+          <optgroup label="Feste fisse">
+            <option value="y:1:1">Capodanno (1 gen)</option>
+            <option value="y:1:6">Epifania (6 gen)</option>
+            <option value="y:4:25">Liberazione (25 apr)</option>
+            <option value="y:5:1">Festa del Lavoro (1 mag)</option>
+            <option value="y:6:2">Festa della Repubblica (2 giu)</option>
+            <option value="y:8:15">Ferragosto (15 ago)</option>
+            <option value="y:11:1">Ognissanti (1 nov)</option>
+            <option value="y:12:8">Immacolata (8 dic)</option>
+            <option value="y:12:25">Natale (25 dic)</option>
+            <option value="y:12:26">Santo Stefano (26 dic)</option>
+          </optgroup>
+          <optgroup label="Feste mobili (Pasqua)">
+            <option value="e:-47">Martedì Grasso (Carnevale)</option>
+            <option value="e:-2">Venerdì Santo</option>
+            <option value="e:0">Pasqua</option>
+            <option value="e:1">Lunedì dell'Angelo (Pasquetta)</option>
+            <option value="e:39">Ascensione</option>
+            <option value="e:49">Pentecoste</option>
+          </optgroup>
+          <option value="custom">Data personalizzata…</option>
+        </select>
+        <div id="recCustom" style="display:none;margin-top:8px" class="row">
+          <div><label>Mese (1–12)</label><input type="number" id="recMonth" min="1" max="12" value="12"></div>
+          <div><label>Giorno (1–31)</label><input type="number" id="recYDay" min="1" max="31" value="25"></div>
         </div>
       </div>
       <div class="dim" style="margin-top:6px">La centralina invierà da sola, anche a computer spento.</div>
@@ -257,7 +288,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.20';
+var WEB_VERSION='v1.21';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
@@ -771,8 +802,10 @@ function syncRecur(){
   if($('recWeekly'))   $('recWeekly').style.display   = (t==='weekly')?'':'none';
   if($('recMonthDay')) $('recMonthDay').style.display = (t==='monthly_day')?'':'none';
   if($('recMonthNth')) $('recMonthNth').style.display = (t==='monthly_nth')?'':'none';
+  if($('recAnnual'))   $('recAnnual').style.display   = (t==='annual')?'':'none';
 }
 if($('recurType')) $('recurType').onchange=syncRecur;
+if($('recHoliday')) $('recHoliday').onchange=function(){ if($('recCustom')) $('recCustom').style.display=(this.value==='custom')?'':'none'; };
 // costruisce la regola JSON da mandare al firmware ('' = una volta, null = regola invalida)
 function buildRecur(){
   var t=$('recurType').value; if(t==='') return '';
@@ -780,8 +813,16 @@ function buildRecur(){
   if(t==='weekly'){ if(!RECUR_DOWS){ alert('Scegli almeno un giorno della settimana'); return null; } r.dows=RECUR_DOWS; }
   if(t==='monthly_day'){ r.day=parseInt($('recDay').value||'1',10); }
   if(t==='monthly_nth'){ r.nth=parseInt($('recNth').value,10); r.ndow=parseInt($('recNdow').value,10); }
+  if(t==='annual'){
+    var h=$('recHoliday').value;
+    if(h==='custom'){ r.type='yearly'; r.month=parseInt($('recMonth').value||'1',10); r.day=parseInt($('recYDay').value||'1',10); }
+    else if(h.charAt(0)==='y'){ var p=h.split(':'); r.type='yearly'; r.month=parseInt(p[1],10); r.day=parseInt(p[2],10); }
+    else { r.type='easter'; r.offset=parseInt(h.split(':')[1],10); }
+  }
   return JSON.stringify(r);
 }
+var _MESI=['','gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+var _EASTER={'-47':'Carnevale','-2':'Ven. Santo','0':'Pasqua','1':'Pasquetta','39':'Ascensione','49':'Pentecoste'};
 // descrizione leggibile di una regola di ricorrenza (per l'elenco Invii programmati)
 function describeRecur(r){
   if(!r||!r.type) return '';
@@ -791,6 +832,8 @@ function describeRecur(r){
   if(r.type==='weekly'){ var d=[]; for(var i=0;i<7;i++) if((r.dows>>i)&1) d.push(days[i]); return d.join(',')+' '+hhmm; }
   if(r.type==='monthly_day') return 'il '+r.day+' del mese '+hhmm;
   if(r.type==='monthly_nth'){ var n={'1':'primo','2':'secondo','3':'terzo','4':'quarto','-1':'ultimo'}[String(r.nth)]||''; return n+' '+days[r.ndow]+' del mese '+hhmm; }
+  if(r.type==='yearly') return r.day+' '+_MESI[r.month]+' '+hhmm;
+  if(r.type==='easter') return (_EASTER[String(r.offset)]||('Pasqua'+(r.offset>0?'+':'')+r.offset))+' '+hhmm;
   return 'ricorrente';
 }
 
