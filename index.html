@@ -317,7 +317,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.26';
+var WEB_VERSION='v1.27';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -630,17 +630,28 @@ $('btnSend').onclick=async function(){
   this.disabled=false;
 };
 var STATE={downloading:'scarico audio',calling:'sto chiamando',answered:'risposta ricevuta',dtmf:'invio codice',playing:'riproduco il bando',done:'bando completato',sent:'inviato',error:'errore',sending:'invio'};
-async function poll(id,n){
-  if(n>80) return;
+// Segue l'invio SINGOLO dallo STATO REALE della board (/board/status), non dal cache MQTT:
+// durante un bando la board non pubblica via MQTT (gBandoBusy) -> /status/<req> resta 404 e la
+// webapp restava "attendo la board" pur essendo completato (segnalazione Grazia). Logga a ogni
+// cambio di stato finche' done/error/interrotto.
+async function poll(id,n,last){
+  if(n>120) return;
+  var cur=last||'';
   try{
-    var r=await gfetch('/status/'+id); if(r.ok){ var d=await r.json();
-      var st=d.state||'—'; var lab=STATE[st]||st;
-      var cls=(st==='done'||st==='sent')?'ok':(st==='error'?'err':'warn');
-      log('<span class="pill '+cls+'">'+lab+'</span> '+(d.detail?('<span class="dim">'+d.detail+'</span>'):''));
-      if(st==='done'||st==='error') return;
+    var d=await (await gfetch('/board/status')).json();
+    var b=d.bando||{};
+    if(b.id===id){
+      var key=(b.state||'')+'|'+(b.detail||'');
+      if(key!==cur){
+        var st=b.state||'—'; var lab=STATE[st]||st;
+        var cls=(st==='done')?'ok':(st==='error'?'err':'warn');
+        log('<span class="pill '+cls+'">'+lab+'</span> '+(b.detail?('<span class="dim">'+_esc(b.detail)+'</span>'):''));
+        cur=key;
+      }
+      if(b.state==='done'||b.state==='error'||b.state==='interrotto') return;
     }
   }catch(e){}
-  setTimeout(function(){ poll(id,n+1); },1500);
+  setTimeout(function(){ poll(id,n+1,cur); },1500);
 }
 // ---- stato centralina (da /health) ----
 async function loadBoard(){
