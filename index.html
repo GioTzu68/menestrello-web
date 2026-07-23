@@ -281,6 +281,23 @@ audio{width:100%;margin-top:10px}
   </div>
 
   <div class="card">
+    <h2>🔔 Concento (campane)</h2>
+    <div class="dim" style="margin-bottom:10px">Rintocchi automatici di ore, quarti e Angelus; silenzia la Settimana Santa (calendario liturgico calcolato dalla centralina). In demo suonano sullo speaker locale.</div>
+    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coEnabled" style="width:auto;margin:0">Attiva campane</label>
+    <div class="row" style="margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coHours" style="width:auto;margin:0">Rintocco ore</label>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coAngelus" style="width:auto;margin:0">Angelus (6/12/18)</label>
+    </div>
+    <label>Quarti</label>
+    <select id="coQuarters"><option value="0">Off</option><option value="15">Ogni 15 min</option><option value="30">Ogni 30 min</option></select>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" id="coHoly" style="width:auto;margin:0">Silenzia Settimana Santa</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn tonal" onclick="saveConcento()" style="width:auto">💾 Salva</button>
+      <button class="btn tonal" onclick="testConcento()" style="width:auto">🔔 Prova rintocco</button>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Info</h2>
     <div id="infoBox" class="dim">…</div>
     <a class="btn tonal" href="#" onclick="location.reload();return false" style="margin-top:10px">↻ Ricarica</a>
@@ -288,7 +305,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.21';
+var WEB_VERSION='v1.22';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
@@ -845,6 +862,28 @@ if($('codiceOn')) $('codiceOn').onchange=function(){ syncCodice(); updateSendEna
 if($('cCodiceOn')) $('cCodiceOn').onchange=syncCCodice;
 syncCodice();
 
+// ---- Concento (campane): config + prova ----
+async function loadConcento(){
+  try{ var c=await (await gfetch('/board/concento')).json();
+    if($('coEnabled')) $('coEnabled').checked=!!c.enabled;
+    if($('coHours'))   $('coHours').checked=(c.hours!==false);
+    if($('coAngelus')) $('coAngelus').checked=(c.angelus_on!==false);
+    if($('coQuarters'))$('coQuarters').value=String(c.quarters||0);
+    if($('coHoly'))    $('coHoly').checked=(c.silence_holyweek!==false);
+  }catch(e){ /* board non raggiungibile */ }
+}
+async function saveConcento(){
+  var cfg={enabled:$('coEnabled').checked, hours:$('coHours').checked, angelus_on:$('coAngelus').checked,
+    quarters:parseInt($('coQuarters').value,10), angelus:[6,12,18], silence_holyweek:$('coHoly').checked, bell:"c:/campana.wav"};
+  try{ await post('/board/concento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    feedLine('ok','Campane: impostazioni salvate'); }catch(e){ alert('Errore: '+e.message); }
+}
+async function testConcento(){
+  try{ await post('/board/concento/test',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'n=2'});
+    feedLine('ok','Prova rintocco inviata (serve il campione campana sulla centralina)'); }
+  catch(e){ alert('Errore: '+e.message); }
+}
+
 // ---- boot: da github.io scopre l'URL del backend dal Gist PRIMA di partire ----
 (async function boot(){
   if(REMOTE){
@@ -853,7 +892,7 @@ syncCodice();
     var g=document.querySelector('a[href="/guida"]'); if(g && API_BASE) g.href=API_BASE+'/guida';   // Guida sul backend
     if(!TOKEN){ promptToken(); return; }                                                            // serve il codice d'accesso
   }
-  loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled();
+  loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled(); loadConcento();
   setInterval(loadBoard,6000); setInterval(loadScheduled,15000);
   // il tunnel cambia URL ai riavvii: ri-scopri ogni 30s e aggiorna la base senza ricaricare
   if(REMOTE) setInterval(async function(){ var u=await discoverBase(); if(u && u!==API_BASE){ API_BASE=u; } }, 30000);
