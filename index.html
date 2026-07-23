@@ -276,7 +276,7 @@ audio{width:100%;margin-top:10px}
 
   <div class="card sec sec-invia" id="schedCard" style="display:none">
     <h2>Invii programmati</h2>
-    <div class="dim" style="margin-bottom:10px">Invii impostati per un orario futuro, non ancora partiti. Puoi annullarli finché la centralina non li invia.</div>
+    <div class="dim" style="margin-bottom:10px">Invii programmati e ricorrenti: prossima esecuzione, avanzamento ed <b>esito quando partono</b> (senza aprire lo storico).</div>
     <div id="schedList"></div>
   </div>
 
@@ -316,7 +316,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.24';
+var WEB_VERSION='v1.25';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -858,21 +858,46 @@ function _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){retu
 async function loadScheduled(){
   try{
     var r=await (await gfetch('/board/campaigns')).json();
-    var cs=(r.campaigns||[]).filter(function(c){ return (c.when|0)>0 && c.stato==='pending'; });
-    cs.sort(function(a,b){ return a.when-b.when; });
+    // programmati/ricorrenti (futuri) + quelli scheduled che sono PARTITI (in corso/esito),
+    // cosi' l'operatore vede l'esito senza aprire lo storico (segnalazione Grazia).
+    var cs=(r.campaigns||[]).filter(function(c){ return (c.when|0)>0 || c.recur; });
+    cs.sort(function(a,b){ return (b.when|0)-(a.when|0); });
     var card=$('schedCard'), list=$('schedList'); if(!card||!list) return;
     if(!cs.length){ card.style.display='none'; list.innerHTML=''; return; }
     card.style.display='';
     list.innerHTML=cs.map(function(c){
-      var dt=new Date(c.when*1000).toLocaleString();
+      var dt=(c.when|0)>0 ? new Date(c.when*1000).toLocaleString() : '';
       var tipo=c.tipo==='sms'?'📩 SMS':'📣 Voce';
       var rec=describeRecur(c.recur);
+      var st=c.stato||'pending', done=c.done|0, total=c.total|0;
+      var badge='', sub='', btn='';
+      if(st==='running'){
+        badge='<span class="pill" style="background:rgba(79,209,197,.18);color:var(--teal);font-size:11px">🔄 in corso '+done+'/'+total+'</span>';
+        sub=c.current?_esc(c.current):'invio in corso…';
+      } else if(st==='done'){
+        badge='<span class="pill ok" style="font-size:11px">✅ completata '+done+'/'+total+'</span>';
+        sub=(dt?'🕒 '+_esc(dt):'')+(rec?' · 🔁 '+_esc(rec):'');
+        btn='<button class="btn tonal" style="width:auto" onclick="rimuoviProgrammato(\''+_esc(c.id)+'\')">🗑 Rimuovi</button>';
+      } else if(st==='error'){
+        badge='<span class="pill err" style="font-size:11px">⚠ errore</span>';
+        sub=_esc(c.error||'invio non riuscito');
+        btn='<button class="btn tonal" style="width:auto" onclick="rimuoviProgrammato(\''+_esc(c.id)+'\')">🗑 Rimuovi</button>';
+      } else { // pending
+        badge=rec?'<span class="pill ok" style="font-size:11px">🔁 '+_esc(rec)+'</span>':'<span class="pill" style="background:rgba(255,180,60,.18);color:#ffb43c;font-size:11px">🕒 programmato</span>';
+        sub='🕒 '+(rec?'prossima: ':'')+_esc(dt);
+        btn='<button class="btn tonal" style="width:auto" onclick="annullaProgrammato(\''+_esc(c.id)+'\')">✖ Annulla</button>';
+      }
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
-        +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+(rec?' <span class="pill ok" style="font-size:11px">🔁 '+_esc(rec)+'</span>':'')+'</div>'
-        +'<div class="dim" style="font-size:12px">🕒 '+(rec?'prossima: ':'')+_esc(dt)+'</div></div>'
-        +'<button class="btn tonal" style="width:auto" onclick="annullaProgrammato(\''+_esc(c.id)+'\')">✖ Annulla</button></div>';
+        +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+' '+badge+'</div>'
+        +(sub?'<div class="dim" style="font-size:12px">'+sub+'</div>':'')+'</div>'+btn+'</div>';
     }).join('');
   }catch(e){ /* board non raggiungibile: lascia com'è */ }
+}
+async function rimuoviProgrammato(id){
+  try{
+    await post('/board/campaign/del',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(id)});
+    await loadScheduled();
+  }catch(e){ alert('Errore: '+e.message); }
 }
 async function annullaProgrammato(id){
   if(!confirm('Annullare questo invio programmato?')) return;
