@@ -54,6 +54,7 @@ audio{width:100%;margin-top:10px}
 
   <div class="card" id="boardCard">
     <h2>Stato centralina <span id="bState" class="pill warn" style="float:right">…</span></h2>
+    <div id="bActivity" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:9px;background:rgba(255,82,82,.13);color:#ff9a9a;font-weight:700"></div>
     <div id="bInfo" class="dim">verifico…</div>
   </div>
 
@@ -341,7 +342,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.34';
+var WEB_VERSION='v1.35';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -719,6 +720,15 @@ async function loadBoard(){
       info='La centralina non risponde (ultimo contatto '+(age?Math.round(age)+'s fa':'mai')+'). Puoi preparare il bando: partirà appena torna online.';
     }
     $('bInfo').innerHTML=info;
+    // ATTIVITÀ CONDIVISA: mostra il bando in corso di CHIUNQUE (tu o Grazia) -> visibilità cross-postazione
+    try{
+      var bs=(await (await gfetch('/board/status')).json()).bando||{};
+      var act=$('bActivity');
+      if(bs.busy){
+        var lbl={downloading:'preparo audio',preparing:'preparo audio',calling:'chiamata in corso',answered:'risposto',dtmf:'invio codice',playing:'in riproduzione (jingle + messaggio)',campaign:'campagna in corso'}[bs.state]||(bs.state||'in corso');
+        act.style.display=''; act.innerHTML='🔴 Invio in corso — '+lbl+(bs.detail?(' <span style="font-weight:400;opacity:.8">· '+_esc(bs.detail)+'</span>'):'');
+      } else { act.style.display='none'; }
+    }catch(e){ var a=$('bActivity'); if(a) a.style.display='none'; }
     $('infoBox').innerHTML =
       'Web dialer <b>'+WEB_VERSION+'</b><br>'+
       'Backend: <code>'+location.origin+'</code><br>'+
