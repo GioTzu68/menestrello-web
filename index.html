@@ -150,9 +150,40 @@ audio{width:100%;margin-top:10px}
       <div class="tab" id="w-prog" data-w="prog">🕑 Programmato</div>
     </div>
     <div id="whenWrap" style="display:none;margin-top:8px">
-      <label>Data e ora dell'invio</label>
-      <input type="datetime-local" id="whenAt">
-      <div class="dim" style="margin-top:6px">La centralina invierà da sola all'orario impostato, anche a computer spento.</div>
+      <label>Ripeti</label>
+      <select id="recurType">
+        <option value="">Una volta</option>
+        <option value="daily">Ogni giorno</option>
+        <option value="weekly">Ogni settimana</option>
+        <option value="monthly_day">Ogni mese (giorno del mese)</option>
+        <option value="monthly_nth">Ogni mese (es. ultimo sabato)</option>
+      </select>
+      <div id="recOnce" style="margin-top:8px">
+        <label>Data e ora dell'invio</label>
+        <input type="datetime-local" id="whenAt">
+      </div>
+      <div id="recTime" style="display:none;margin-top:8px">
+        <label>Ora</label><input type="time" id="recAt" value="08:00">
+      </div>
+      <div id="recWeekly" style="display:none;margin-top:8px">
+        <label>Giorni della settimana</label>
+        <div id="dows" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div id="recMonthDay" style="display:none;margin-top:8px">
+        <label>Giorno del mese (1–31)</label>
+        <input type="number" id="recDay" min="1" max="31" value="1">
+      </div>
+      <div id="recMonthNth" style="display:none;margin-top:8px">
+        <div class="row">
+          <div><label>Quale</label><select id="recNth">
+            <option value="1">Primo</option><option value="2">Secondo</option><option value="3">Terzo</option><option value="4">Quarto</option><option value="-1">Ultimo</option>
+          </select></div>
+          <div><label>Giorno</label><select id="recNdow">
+            <option value="1">Lunedì</option><option value="2">Martedì</option><option value="3">Mercoledì</option><option value="4">Giovedì</option><option value="5">Venerdì</option><option value="6">Sabato</option><option value="0">Domenica</option>
+          </select></div>
+        </div>
+      </div>
+      <div class="dim" style="margin-top:6px">La centralina invierà da sola, anche a computer spento.</div>
     </div>
   </div>
 
@@ -226,7 +257,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.19';
+var WEB_VERSION='v1.20';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 
@@ -390,10 +421,16 @@ async function sendCampaign(btn){
   if(!gruppi && !numbers[0]){ alert('Inserisci il numero destinatario'); return; }
   if(sms && !$('smsTxt').value.trim()){ alert('Scrivi il testo dell\'SMS'); return; }
   if(!sms && !audioId){ alert('Prepara prima l\'audio del bando'); return; }
-  var whenTs=0;
-  if(when==='prog'){ var v=$('whenAt').value; if(!v){ alert('Imposta data e ora'); return; }
-    whenTs=Math.floor(new Date(v).getTime()/1000);
-    if(whenTs*1000 < Date.now()-60000){ alert('L\'orario impostato e nel passato'); return; } }
+  var whenTs=0, recurJson=null;
+  if(when==='prog'){
+    if($('recurType').value===''){
+      var v=$('whenAt').value; if(!v){ alert('Imposta data e ora'); return; }
+      whenTs=Math.floor(new Date(v).getTime()/1000);
+      if(whenTs*1000 < Date.now()-60000){ alert('L\'orario impostato e nel passato'); return; }
+    } else {
+      recurJson=buildRecur(); if(recurJson===null){ return; }   // regola invalida (già segnalata)
+    }
+  }
   var cod = (!gruppi && !sms) ? composeCodice() : '';
   var stp = (!gruppi && !sms) ? $('stop').value : '';
   var rep = (!gruppi && !sms) ? ($('repeat').value||'0') : '0';
@@ -404,11 +441,11 @@ async function sendCampaign(btn){
     var body='id=&nome='+encodeURIComponent(nome)+'&tipo='+(sms?'sms':'bando')
       +'&groups='+encodeURIComponent(groups.join(','))+'&numbers='+encodeURIComponent(numbers.join(','))
       +'&codice='+encodeURIComponent(cod)+'&stop='+encodeURIComponent(stp)+'&repeat='+encodeURIComponent(rep)
-      +'&when='+whenTs+'&testo='+encodeURIComponent(sms?$('smsTxt').value.trim():'');
+      +'&when='+whenTs+(recurJson?('&recur='+encodeURIComponent(recurJson)):'')+'&testo='+encodeURIComponent(sms?$('smsTxt').value.trim():'');
     var cr=await post('/board/campaign',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});
     var cid=cr.id; if(!cid) throw new Error('creazione campagna fallita');
     if(!sms){ feedLine('warn','Carico l\'audio sulla board…'); await post('/campaign_push_audio?cid='+encodeURIComponent(cid)+'&audio_id='+encodeURIComponent(audioId)+'&jingle='+encodeURIComponent(selJingle()),{method:'POST'}); }
-    if(whenTs){ feedLine('ok','Programmato per '+new Date(whenTs*1000).toLocaleString()+' — la centralina lo inviera da sola.'); loadScheduled(); btn.disabled=false; return; }
+    if(whenTs || recurJson){ feedLine('ok', recurJson?'Ricorrenza impostata — la centralina invierà da sola.':('Programmato per '+new Date(whenTs*1000).toLocaleString()+' — la centralina lo inviera da sola.')); loadScheduled(); btn.disabled=false; return; }
     try{ var _s0=await (await gfetch('/board/status')).json(); CSEEN=(_s0.bando&&_s0.bando.seq)||0; }catch(e){ CSEEN=0; }
     feedLine('warn','Avvio…');
     await post('/board/campaign/run',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+encodeURIComponent(cid)});
@@ -698,9 +735,10 @@ async function loadScheduled(){
     list.innerHTML=cs.map(function(c){
       var dt=new Date(c.when*1000).toLocaleString();
       var tipo=c.tipo==='sms'?'📩 SMS':'📣 Voce';
+      var rec=describeRecur(c.recur);
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
-        +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+'</div>'
-        +'<div class="dim" style="font-size:12px">🕒 '+_esc(dt)+'</div></div>'
+        +'<div style="flex:1"><div>'+tipo+' · '+_esc(c.nome)+(rec?' <span class="pill ok" style="font-size:11px">🔁 '+_esc(rec)+'</span>':'')+'</div>'
+        +'<div class="dim" style="font-size:12px">🕒 '+(rec?'prossima: ':'')+_esc(dt)+'</div></div>'
         +'<button class="btn tonal" style="width:auto" onclick="annullaProgrammato(\''+_esc(c.id)+'\')">✖ Annulla</button></div>';
     }).join('');
   }catch(e){ /* board non raggiungibile: lascia com'è */ }
@@ -712,6 +750,48 @@ async function annullaProgrammato(id){
     feedLine('ok','Invio programmato annullato');
     await loadScheduled();
   }catch(e){ alert('Errore: '+e.message); }
+}
+
+// ---- ricorrenza (scheduler): giorni settimana + regola inviata al firmware ----
+// bitmask giorni: bit0=Dom..bit6=Sab (stessa convenzione del firmware).
+var RECUR_DOWS=0;
+(function(){
+  var el=$('dows'); if(!el) return;
+  [['Lun',1],['Mar',2],['Mer',3],['Gio',4],['Ven',5],['Sab',6],['Dom',0]].forEach(function(d){
+    var b=document.createElement('button'); b.type='button'; b.textContent=d[0]; b.className='tab';
+    b.style.cssText='flex:0 0 auto;width:auto;min-width:52px;padding:8px 10px;margin:0';
+    b.onclick=function(){ RECUR_DOWS^=(1<<d[1]); b.classList.toggle('on'); };
+    el.appendChild(b);
+  });
+})();
+function syncRecur(){
+  var t=$('recurType')?$('recurType').value:'';
+  if($('recOnce'))     $('recOnce').style.display     = (t==='')?'':'none';
+  if($('recTime'))     $('recTime').style.display     = (t!=='')?'':'none';
+  if($('recWeekly'))   $('recWeekly').style.display   = (t==='weekly')?'':'none';
+  if($('recMonthDay')) $('recMonthDay').style.display = (t==='monthly_day')?'':'none';
+  if($('recMonthNth')) $('recMonthNth').style.display = (t==='monthly_nth')?'':'none';
+}
+if($('recurType')) $('recurType').onchange=syncRecur;
+// costruisce la regola JSON da mandare al firmware ('' = una volta, null = regola invalida)
+function buildRecur(){
+  var t=$('recurType').value; if(t==='') return '';
+  var at=($('recAt').value||'08:00').split(':'); var r={type:t,hh:parseInt(at[0],10)||0,mm:parseInt(at[1],10)||0};
+  if(t==='weekly'){ if(!RECUR_DOWS){ alert('Scegli almeno un giorno della settimana'); return null; } r.dows=RECUR_DOWS; }
+  if(t==='monthly_day'){ r.day=parseInt($('recDay').value||'1',10); }
+  if(t==='monthly_nth'){ r.nth=parseInt($('recNth').value,10); r.ndow=parseInt($('recNdow').value,10); }
+  return JSON.stringify(r);
+}
+// descrizione leggibile di una regola di ricorrenza (per l'elenco Invii programmati)
+function describeRecur(r){
+  if(!r||!r.type) return '';
+  var days=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  var hhmm=('0'+(r.hh||0)).slice(-2)+':'+('0'+(r.mm||0)).slice(-2);
+  if(r.type==='daily') return 'ogni giorno '+hhmm;
+  if(r.type==='weekly'){ var d=[]; for(var i=0;i<7;i++) if((r.dows>>i)&1) d.push(days[i]); return d.join(',')+' '+hhmm; }
+  if(r.type==='monthly_day') return 'il '+r.day+' del mese '+hhmm;
+  if(r.type==='monthly_nth'){ var n={'1':'primo','2':'secondo','3':'terzo','4':'quarto','-1':'ultimo'}[String(r.nth)]||''; return n+' '+days[r.ndow]+' del mese '+hhmm; }
+  return 'ricorrente';
 }
 
 // ---- codice DTMF: casella "Invia codice"; se spenta, campo disabilitato e nessun codice ----
