@@ -291,7 +291,7 @@ audio{width:100%;margin-top:10px}
     <pre id="storicoView" style="display:none;white-space:pre-wrap;word-break:break-word;background:var(--field,#0f141e);padding:10px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto;margin-top:10px"></pre>
   </div>
 
-  <div class="card sec sec-imp">
+  <div class="card sec sec-impostazioni">
     <h2>🔔 Concento (campane)</h2>
     <div class="dim" style="margin-bottom:10px">Rintocchi automatici di ore, quarti e Angelus; silenzia la Settimana Santa (calendario liturgico calcolato dalla centralina). In demo suonano sullo speaker locale.</div>
     <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coEnabled" style="width:auto;margin:0">Attiva campane</label>
@@ -308,7 +308,7 @@ audio{width:100%;margin-top:10px}
     </div>
   </div>
 
-  <div class="card sec sec-imp">
+  <div class="card sec sec-impostazioni">
     <h2>Info</h2>
     <div id="infoBox" class="dim">…</div>
     <a class="btn tonal" href="#" onclick="location.reload();return false" style="margin-top:10px">↻ Ricarica</a>
@@ -316,7 +316,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.23';
+var WEB_VERSION='v1.24';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
