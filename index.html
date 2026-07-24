@@ -252,7 +252,12 @@ audio{width:100%;margin-top:10px}
         <div><label>Nome</label><input type="text" id="cNome"></div>
         <div><label>Cognome</label><input type="text" id="cCognome"></div>
       </div>
-      <label>Numero</label><input type="text" id="cNumero">
+      <label title="Come raggiungere il destinatario: telefonica = chiama il numero; HiFi = riproduce sul diffusore locale/palo (senza numero).">Canale</label>
+      <select id="cCanale" onchange="cCanaleChange()">
+        <option value="tel">📞 Telefonica (chiama il numero)</option>
+        <option value="hifi">🔊 HiFi (diffusore locale / palo)</option>
+      </select>
+      <label id="cNumLbl">Numero</label><input type="text" id="cNumero">
       <div class="row">
         <div><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cCodiceOn" checked style="width:auto;margin:0">Codice (DTMF)</label><input type="text" id="cCodice" value="1234"></div>
         <div><label>Chiusura</label><select id="cStop"><option value="">nessuna</option><option value="#">#</option><option value="*">*</option></select></div>
@@ -380,7 +385,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.39';
+var WEB_VERSION='v1.40';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -891,18 +896,25 @@ function renderCGroups(selIds){
     el.appendChild(lab);
   });
 }
-function newContact(){ $('cId').value='';$('cNome').value='';$('cCognome').value='';$('cNumero').value='';$('cCodice').value='1234';$('cCodiceOn').checked=true;$('cStop').value='#';$('cRepeat').value='0';$('cTent').value='1'; syncCCodice(); renderCGroups([]); $('cEditor').style.display=''; }
-function editContact(c){ $('cId').value=c.id;$('cNome').value=c.nome||'';$('cCognome').value=c.cognome||'';$('cNumero').value=c.numero||'';$('cCodice').value=c.codice||'';$('cCodiceOn').checked=!!(c.codice&&String(c.codice).length);$('cStop').value=(c.stop!==undefined?c.stop:'#');$('cRepeat').value=c.repeat||0;$('cTent').value=c.tentativi||1; syncCCodice(); renderCGroups(c.groups||[]); $('cEditor').style.display=''; }
+function newContact(){ $('cId').value='';$('cNome').value='';$('cCognome').value='';$('cNumero').value='';$('cCanale').value='tel';$('cCodice').value='1234';$('cCodiceOn').checked=true;$('cStop').value='#';$('cRepeat').value='0';$('cTent').value='1'; cCanaleChange(); syncCCodice(); renderCGroups([]); $('cEditor').style.display=''; }
+function editContact(c){ $('cId').value=c.id;$('cNome').value=c.nome||'';$('cCognome').value=c.cognome||'';$('cNumero').value=c.numero||'';$('cCanale').value=c.canale||'tel';$('cCodice').value=c.codice||'';$('cCodiceOn').checked=!!(c.codice&&String(c.codice).length);$('cStop').value=(c.stop!==undefined?c.stop:'#');$('cRepeat').value=c.repeat||0;$('cTent').value=c.tentativi||1; cCanaleChange(); syncCCodice(); renderCGroups(c.groups||[]); $('cEditor').style.display=''; }
 $('btnNewContact').onclick=newContact;
 $('cCancel').onclick=function(){ $('cEditor').style.display='none'; };
+function cCanaleChange(){
+  var hifi=$('cCanale') && $('cCanale').value==='hifi';
+  if($('cNumLbl')) $('cNumLbl').textContent = hifi ? 'Numero (non serve per HiFi)' : 'Numero';
+  if($('cNumero')) $('cNumero').placeholder = hifi ? 'lascia vuoto' : '';
+}
 $('cSave').onclick=async function(){
   var nome=$('cNome').value.trim(), cognome=$('cCognome').value.trim(), num=$('cNumero').value.trim();
+  var canale=$('cCanale')?$('cCanale').value:'tel';
   if(!nome&&!cognome){ alert('Inserisci nome o cognome'); return; }
-  if(!num){ alert('Inserisci il numero'); return; }
+  if(canale!=='hifi' && !num){ alert('Inserisci il numero (oppure scegli il canale HiFi)'); return; }
   var gs=Array.prototype.slice.call(document.querySelectorAll('.cgrp:checked')).map(function(x){return x.value;});
   var body='id='+encodeURIComponent($('cId').value)+'&nome='+encodeURIComponent(nome)+'&cognome='+encodeURIComponent(cognome)+
     '&numero='+encodeURIComponent(num)+'&groups='+encodeURIComponent(gs.join(','))+'&codice='+encodeURIComponent($('cCodiceOn').checked?$('cCodice').value.trim():'')+
-    '&stop='+encodeURIComponent($('cStop').value)+'&repeat='+encodeURIComponent($('cRepeat').value||'0')+'&tentativi='+encodeURIComponent($('cTent').value||'1');
+    '&stop='+encodeURIComponent($('cStop').value)+'&repeat='+encodeURIComponent($('cRepeat').value||'0')+'&tentativi='+encodeURIComponent($('cTent').value||'1')+
+    '&canale='+encodeURIComponent(canale);
   try{ await post('/board/contact',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}); $('cEditor').style.display='none'; await loadRubrica(); if(dest==='gruppi') loadGroups(); }
   catch(e){ alert('Errore: '+e.message); }
 };
