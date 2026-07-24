@@ -324,6 +324,15 @@ audio{width:100%;margin-top:10px}
       <button class="btn tonal" onclick="testTone()" style="width:auto">🔈 Prova tono</button>
       <button class="btn tonal" onclick="testClock()" style="width:auto">🕐 Prova annuncio</button>
     </div>
+    <div style="margin-top:14px;border-top:1px solid #223;padding-top:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px">🎵 Prova trasmissione — carica un file e suonalo sul diffusore</div>
+      <div class="dim" style="font-size:12px;margin-bottom:8px">WAV o MP3 (qualsiasi frequenza: la centralina adatta a ≤32 kHz). Il file va sulla microSD e viene riprodotto sul MAX.</div>
+      <input type="file" id="dfFile" accept=".wav,.mp3" title="Scegli un file WAV o MP3 da riprodurre sul diffusore locale">
+      <div class="row" style="margin-top:8px;align-items:flex-end">
+        <div style="max-width:120px"><label title="Volume di riproduzione (0-100).">Volume</label><input type="number" id="dfPlayVol" min="0" max="100" value="15"></div>
+        <button class="btn tonal" onclick="dfUploadPlay()" style="width:auto">🔊 Carica e riproduci</button>
+      </div>
+    </div>
     <div id="dfMsg" class="dim" style="margin-top:8px"></div>
   </div>
 
@@ -366,7 +375,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.37';
+var WEB_VERSION='v1.38';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -1213,6 +1222,19 @@ async function saveDiffusione(){
 }
 async function testTone(){ try{ await gfetch('/board/audio/test?freq=660&ms=500&vol=8'); dfFlash('🔈 Tono inviato'); }catch(e){ dfFlash('✗ Errore'); } }
 async function testClock(){ try{ await gfetch('/board/audio/clock'); dfFlash('🕐 Annuncio inviato'); }catch(e){ dfFlash('✗ Errore'); } }
+async function dfUploadPlay(){
+  var f=$('dfFile').files[0]; if(!f){ dfFlash('Scegli prima un file'); return; }
+  var mp3=/\.mp3$/i.test(f.name); var ext=mp3?'mp3':'wav';
+  dfFlash('Carico il file…');
+  try{
+    var fd=new FormData(); fd.append('f', f);
+    var up=await fetch(apiUrl('/board/audio/'+ext), {method:'POST', headers:apiHeaders(), body:fd});
+    if(!up.ok){ dfFlash('✗ Upload fallito ('+up.status+')'); return; }
+    var vol=$('dfPlayVol').value||15;
+    await gfetch('/board/audio/speaker?file=/play.'+ext+'&vol='+encodeURIComponent(vol));
+    dfFlash('🔊 In riproduzione sul diffusore');
+  }catch(e){ dfFlash('✗ Errore: '+e); }
+}
 
 async function loadConcento(){
   try{ var c=await (await gfetch('/board/concento')).json();
