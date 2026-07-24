@@ -62,7 +62,7 @@ audio{width:100%;margin-top:10px}
     <button class="on" data-v="invia" onclick="showView('invia')">📣 Invia</button>
     <button data-v="rubrica" onclick="showView('rubrica')">📇 Rubrica</button>
     <button data-v="storico" onclick="showView('storico')">📜 Storico</button>
-    <button data-v="concento" onclick="showView('concento')">🔔 Concento</button>
+    <button data-v="diffusione" onclick="showView('diffusione')">🔊 Diffusione</button>
     <button data-v="impostazioni" onclick="showView('impostazioni')">⚙️ Impostazioni</button>
   </nav>
 
@@ -298,21 +298,33 @@ audio{width:100%;margin-top:10px}
     <pre id="storicoView" style="display:none;white-space:pre-wrap;word-break:break-word;background:var(--field,#0f141e);padding:10px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto;margin-top:10px"></pre>
   </div>
 
-  <div class="card sec sec-concento">
-    <h2>🔔 Concento — rintocchi</h2>
-    <div class="dim" style="margin-bottom:10px">Rintocchi automatici di ore, quarti e Angelus; silenzia la Settimana Santa (calendario liturgico calcolato dalla centralina). In demo suonano sullo speaker locale.</div>
-    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coEnabled" style="width:auto;margin:0">Attiva campane</label>
+  <div class="card sec sec-diffusione">
+    <h2>🔊 Diffusione — altoparlante (HiFi)</h2>
+    <div class="dim" style="margin-bottom:10px">Audio locale sul diffusore <b>MAX98357A</b>: annuncio orario, volumi e prove. È la base per i messaggi programmati e gli avvisi di Protezione Civile.</div>
+
+    <label style="display:flex;align-items:center;gap:6px" title="Riproduce l'ora corrente (&quot;Sono le ore...&quot;) ogni ora dalle 7 alle 23, tutti i giorni.">
+      <input type="checkbox" id="dfHourly" style="width:auto;margin:0">Annuncio orario automatico</label>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px" title="Se attivo l'annuncio esce dal diffusore HiFi (MAX); se spento, dallo speaker del modem.">
+      <input type="checkbox" id="dfOnMax" style="width:auto;margin:0">Usa il diffusore HiFi (MAX98357A)</label>
+
     <div class="row" style="margin-top:8px">
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coHours" style="width:auto;margin:0">Rintocco ore</label>
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="coAngelus" style="width:auto;margin:0">Angelus (6/12/18)</label>
+      <div style="flex:1"><label title="Volume dell'annuncio orario (0-100). Consigliato basso.">Volume annuncio orario</label>
+        <input type="number" id="dfHourlyVol" min="0" max="100"></div>
+      <div style="flex:1"><label title="Volume di default del diffusore per gli altri messaggi (0-100). L'incaricato può forzarlo per il singolo invio.">Volume default diffusore</label>
+        <input type="number" id="dfMaxVol" min="0" max="100"></div>
     </div>
-    <label>Quarti</label>
-    <select id="coQuarters"><option value="0">Off</option><option value="15">Ogni 15 min</option><option value="30">Ogni 30 min</option></select>
-    <label style="display:flex;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" id="coHoly" style="width:auto;margin:0">Silenzia Settimana Santa</label>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <button class="btn tonal" onclick="saveConcento()" style="width:auto">💾 Salva</button>
-      <button class="btn tonal" onclick="testConcento()" style="width:auto">🔔 Prova rintocco</button>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1"><label title="Ritardo (ms) tra l'accensione dell'amplificatore (relè) e l'inizio dell'audio, per dargli il tempo di scaldarsi.">Warmup amplificatore (ms)</label>
+        <input type="number" id="dfAmpWarm" min="0" max="5000"></div>
+      <div style="flex:1"></div>
     </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn tonal" onclick="saveDiffusione()" style="width:auto">💾 Salva</button>
+      <button class="btn tonal" onclick="testTone()" style="width:auto">🔈 Prova tono</button>
+      <button class="btn tonal" onclick="testClock()" style="width:auto">🕐 Prova annuncio</button>
+    </div>
+    <div id="dfMsg" class="dim" style="margin-top:8px"></div>
   </div>
 
   <div class="card sec sec-concento">
@@ -354,7 +366,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.36';
+var WEB_VERSION='v1.37';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -367,6 +379,7 @@ function showView(v){
   document.querySelectorAll('.subnav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
   window.scrollTo(0,0);
   if(v==='storico' && typeof showStorico==='function') showStorico();   // storico sempre fresco all'apertura
+  if(v==='diffusione' && typeof loadDiffusione==='function') loadDiffusione();   // config fresca all'apertura
 }
 showView('invia');   // vista iniziale
 
@@ -1178,6 +1191,29 @@ function suoImport(inp){
 }
 
 // ---- Concento (campane): config + prova ----
+// ---- DIFFUSIONE (altoparlante MAX / annuncio orario) ----
+function dfFlash(m){ var el=$('dfMsg'); if(!el)return; el.textContent=m; setTimeout(function(){ if(el.textContent===m) el.textContent=''; },3000); }
+async function loadDiffusione(){
+  try{ var d=await (await gfetch('/board/voice')).json();
+    $('dfHourly').checked  = !!d.hourly;
+    $('dfOnMax').checked   = !!d.hourly_on_max;
+    $('dfHourlyVol').value = d.hourly_vol;
+    $('dfMaxVol').value    = d.max_vol;
+    $('dfAmpWarm').value   = d.amp_warm_ms;
+  }catch(e){ dfFlash('Board non raggiungibile'); }
+}
+async function saveDiffusione(){
+  var q='hourly='+($('dfHourly').checked?1:0)
+      +'&hourly_on_max='+($('dfOnMax').checked?1:0)
+      +'&hourly_vol='+encodeURIComponent($('dfHourlyVol').value||10)
+      +'&max_vol='+encodeURIComponent($('dfMaxVol').value||15)
+      +'&amp_warm_ms='+encodeURIComponent($('dfAmpWarm').value||400);
+  try{ await gfetch('/board/voice?'+q); dfFlash('✓ Impostazioni salvate'); }
+  catch(e){ dfFlash('✗ Errore salvataggio'); }
+}
+async function testTone(){ try{ await gfetch('/board/audio/test?freq=660&ms=500&vol=8'); dfFlash('🔈 Tono inviato'); }catch(e){ dfFlash('✗ Errore'); } }
+async function testClock(){ try{ await gfetch('/board/audio/clock'); dfFlash('🕐 Annuncio inviato'); }catch(e){ dfFlash('✗ Errore'); } }
+
 async function loadConcento(){
   try{ var c=await (await gfetch('/board/concento')).json();
     if($('coEnabled')) $('coEnabled').checked=!!c.enabled;
@@ -1207,7 +1243,7 @@ async function testConcento(){
     var g=document.querySelector('a[href="/guida"]'); if(g && API_BASE) g.href=API_BASE+'/guida';   // Guida sul backend
     if(!TOKEN){ promptToken(); return; }                                                            // serve il codice d'accesso
   }
-  loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled(); loadConcento();
+  loadModels(); loadRubrica(); loadJingles(); loadBoard(); loadScheduled(); loadDiffusione();
   suoBuildGrid(); loadSuonate();   // editor suonate Concento
   setInterval(loadBoard,6000); setInterval(loadScheduled,15000);
   setInterval(function(){ if(curView==='storico') showStorico(true); },12000);   // storico live mentre la scheda è aperta
