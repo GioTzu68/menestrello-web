@@ -333,6 +333,11 @@ audio{width:100%;margin-top:10px}
         <button class="btn tonal" onclick="dfUploadPlay()" style="width:auto">🔊 Carica e riproduci</button>
       </div>
     </div>
+    <div style="margin-top:14px;border-top:1px solid #223;padding-top:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px">⚠️ Allerte Protezione Civile / meteo</div>
+      <div class="dim" style="font-size:12px;margin-bottom:8px" title="Fonte ufficiale (Meteoalarm) per la regione configurata. Le allerte NON partono da sole: prepari tu il bando e lo confermi.">Fonte ufficiale per la regione configurata. Non partono da sole — <b>tu prepari e confermi</b> l'invio.</div>
+      <div id="dfAlerts" class="dim">…</div>
+    </div>
     <div id="dfMsg" class="dim" style="margin-top:8px"></div>
   </div>
 
@@ -375,7 +380,7 @@ audio{width:100%;margin-top:10px}
 </div>
 
 <script>
-var WEB_VERSION='v1.38';
+var WEB_VERSION='v1.39';
 var audioId=null, mediaRec=null, chunks=[];
 function $(id){return document.getElementById(id)}
 // ---- navigazione a SEZIONI (pagina piu' corta): mostra solo le card della vista attiva ----
@@ -1210,6 +1215,28 @@ async function loadDiffusione(){
     $('dfMaxVol').value    = d.max_vol;
     $('dfAmpWarm').value   = d.amp_warm_ms;
   }catch(e){ dfFlash('Board non raggiungibile'); }
+  loadAlerts();
+}
+async function loadAlerts(){
+  var el=$('dfAlerts'); if(!el) return;
+  try{ var d=await (await gfetch('/alerts')).json();
+    var al=d.alerts||[];
+    if(!al.length){ el.innerHTML='<span class="pill ok">Nessuna allerta attiva</span> per '+(d.region||'')+' (livello ≥ '+(d.min_level||2)+')'; return; }
+    el.innerHTML=al.map(function(a){
+      var col={yellow:'#e3b341',orange:'#f0883e',red:'#f85149'}[a.color]||'#8b949e';
+      return '<div style="border-left:3px solid '+col+';padding:6px 10px;margin:8px 0;background:var(--field);border-radius:8px">'
+        +'<b>'+(a.event||'')+'</b> <span class="dim" style="font-size:12px">· scade '+String(a.expires||'').slice(0,16).replace('T',' ')+'</span><br>'
+        +'<span class="dim" style="font-size:12px">'+String(a.description||'').slice(0,170)+'</span><br>'
+        +'<button class="btn tonal" style="width:auto;margin-top:6px" onclick="alertToBando(this.dataset.t)" data-t="'+encodeURIComponent((a.event||'')+'. '+(a.description||''))+'">📢 Prepara bando</button>'
+        +'</div>';
+    }).join('');
+  }catch(e){ el.textContent='Allerte non disponibili (backend?)'; }
+}
+function alertToBando(enc){
+  var txt=decodeURIComponent(enc||'');
+  showView('invia');
+  var t=$('txt'); if(t){ t.value=txt; t.dispatchEvent(new Event('input')); }
+  window.scrollTo(0,0);
 }
 async function saveDiffusione(){
   var q='hourly='+($('dfHourly').checked?1:0)
